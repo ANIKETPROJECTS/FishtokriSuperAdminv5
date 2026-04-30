@@ -217,13 +217,13 @@ function effectiveOrderTotal(o: any): number {
   return Math.max(0, subtotal - discount + slot);
 }
 
-function formatOrderId(o: any): string {
+function formatOrderId(o: any, dailySeq?: number): string {
   const d = o?.createdAt ? new Date(o.createdAt) : null;
   const datePart = d
     ? `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`
     : "00000000";
-  const seq = String(o?._id || "").slice(-6).toUpperCase();
-  return `FT ${datePart} ${seq}`;
+  const seqStr = dailySeq != null ? String(dailySeq).padStart(2, "0") : "??";
+  return `FT${datePart}${seqStr}`;
 }
 
 function numberToWords(n: number): string {
@@ -780,6 +780,22 @@ export default function Orders() {
   // Load sub-hubs when super-hub changes
   // Auto-select hub for super_hub users when only one option is available.
   const adminScope = useMemo(() => getCurrentAdminScope(), []);
+
+  // Build a per-day sequential order number map from loaded orders
+  const dailySeqMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const sorted = [...orders].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const dayCounters = new Map<string, number>();
+    for (const o of sorted) {
+      const d = new Date(o.createdAt);
+      const day = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+      const seq = (dayCounters.get(day) ?? 0) + 1;
+      dayCounters.set(day, seq);
+      map.set(String(o._id), seq);
+    }
+    return map;
+  }, [orders]);
+
   useEffect(() => {
     if (selectedSuperHubId) return;
     if (adminScope.role !== "super_hub") return;
@@ -3442,24 +3458,25 @@ export default function Orders() {
         <SheetContent
           side="right"
           className="w-full sm:max-w-[560px] p-0 flex flex-col gap-0 bg-white"
+          style={{ fontFamily: "'Poppins', sans-serif" }}
         >
           {selectedOrder && (
             <>
               {/* ── Header ── */}
-              <SheetHeader className="px-6 pt-5 pb-4 bg-white border-b border-gray-100">
+              <SheetHeader className="px-6 pt-6 pb-5 bg-white border-b border-gray-100">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <SheetTitle className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    <SheetTitle className="text-[10px] font-semibold text-black uppercase tracking-widest mb-1.5">
                       Order Details
                     </SheetTitle>
-                    <p className="text-xl font-extrabold text-[#1A56DB] tracking-tight leading-none">
-                      {formatOrderId(selectedOrder)}
+                    <p className="text-2xl font-extrabold text-[#364F9F] tracking-tight leading-none">
+                      {formatOrderId(selectedOrder, dailySeqMap.get(String(selectedOrder._id)))}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1.5">{formatDate(selectedOrder.createdAt)}</p>
+                    <p className="text-sm font-medium text-black mt-2">{formatDate(selectedOrder.createdAt)}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
                     <SolidStatusBadge status={selectedOrder.status} deliveryType={selectedOrder.deliveryType} />
-                    <span className="text-base font-extrabold text-[#F97316]">
+                    <span className="text-xl font-extrabold text-[#F05B4E]">
                       {formatRupees(effectiveOrderTotal(selectedOrder) > 0 ? effectiveOrderTotal(selectedOrder) : orderTotal(selectedOrder.items))}
                     </span>
                   </div>
@@ -3470,32 +3487,32 @@ export default function Orders() {
               <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
 
                 {/* ── 1. CUSTOMER ── */}
-                <div className="px-6 py-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MaskIcon src={iconUser} color="#1A56DB" className="w-[16px] h-[16px]" />
-                    <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Customer</span>
+                <div className="px-6 py-6">
+                  <div className="flex items-center gap-2.5 mb-5">
+                    <MaskIcon src={iconUser} color="#364F9F" className="w-[20px] h-[20px]" />
+                    <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Customer</span>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full bg-[#EBF2FF] flex items-center justify-center flex-shrink-0 border-2 border-[#1A56DB]/20">
-                      <span className="text-base font-extrabold text-[#1A56DB]">
+                    <div className="w-14 h-14 rounded-full bg-[#EEF1F9] flex items-center justify-center flex-shrink-0 border-2 border-[#364F9F]/25">
+                      <span className="text-lg font-extrabold text-[#364F9F]">
                         {(selectedOrder.customerName || "?").trim().charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <p className="font-bold text-black text-[16px] leading-tight">{selectedOrder.customerName}</p>
+                    <div className="flex-1 min-w-0 space-y-2.5">
+                      <p className="font-extrabold text-black text-[18px] leading-tight">{selectedOrder.customerName}</p>
                       {selectedOrder.phone && (
-                        <a href={`tel:${selectedOrder.phone}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#1A56DB] transition-colors">
-                          <MaskIcon src={iconPhoneCall} color="#1A56DB" className="w-[14px] h-[14px] flex-shrink-0" />
+                        <a href={`tel:${selectedOrder.phone}`} className="flex items-center gap-2.5 text-sm font-semibold text-black hover:text-[#364F9F] transition-colors">
+                          <MaskIcon src={iconPhoneCall} color="#364F9F" className="w-[18px] h-[18px] flex-shrink-0" />
                           <span>{selectedOrder.phone}</span>
                         </a>
                       )}
                       {selectedOrder.address && (
-                        <div className="flex items-start gap-2 text-sm text-gray-700">
-                          <MaskIcon src={iconPin} color="#F97316" className="w-[14px] h-[14px] flex-shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-2.5 text-sm font-semibold text-black">
+                          <MaskIcon src={iconPin} color="#F05B4E" className="w-[18px] h-[18px] flex-shrink-0 mt-0.5" />
                           <span className="leading-snug">
                             {selectedOrder.address}
                             {selectedOrder.deliveryArea && (
-                              <span className="block text-xs text-gray-400 mt-0.5">{selectedOrder.deliveryArea}</span>
+                              <span className="block text-sm font-medium text-black mt-0.5">{selectedOrder.deliveryArea}</span>
                             )}
                           </span>
                         </div>
@@ -3505,27 +3522,27 @@ export default function Orders() {
                 </div>
 
                 {/* ── 2. ORDER ITEMS ── */}
-                <div className="px-6 py-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <MaskIcon src={iconGrocery} color="#1A56DB" className="w-[16px] h-[16px]" />
-                      <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Order Items</span>
+                <div className="px-6 py-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2.5">
+                      <MaskIcon src={iconGrocery} color="#364F9F" className="w-[20px] h-[20px]" />
+                      <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Order Items</span>
                     </div>
-                    <span className="text-xs font-semibold text-gray-400">
+                    <span className="text-sm font-bold text-black">
                       {(selectedOrder.items ?? []).length} item{(selectedOrder.items ?? []).length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <ul className="space-y-3">
+                  <ul className="space-y-4">
                     {(selectedOrder.items ?? []).map((item: any, i: number) => {
                       const qty = Number(item.quantity || 1);
                       const lineTotal = Number(item.price) * qty;
                       return (
                         <li key={i} className="flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-black text-sm">{item.name}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{qty} × {formatRupees(Number(item.price))}</p>
+                            <p className="font-bold text-black text-base">{item.name}</p>
+                            <p className="text-sm font-medium text-black mt-0.5">{qty} × {formatRupees(Number(item.price))}</p>
                           </div>
-                          <span className="font-bold text-black text-sm whitespace-nowrap">{formatRupees(lineTotal)}</span>
+                          <span className="font-extrabold text-black text-base whitespace-nowrap">{formatRupees(lineTotal)}</span>
                         </li>
                       );
                     })}
@@ -3537,32 +3554,32 @@ export default function Orders() {
                     const grand = effectiveOrderTotal(selectedOrder);
                     const instant = Number(selectedOrder.instantDeliveryCharge) || 0;
                     return (
-                      <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
-                        <div className="flex justify-between text-sm text-gray-500">
+                      <div className="mt-5 pt-4 border-t border-gray-100 space-y-2.5">
+                        <div className="flex justify-between text-sm font-semibold text-black">
                           <span>Subtotal</span>
                           <span>{formatRupees(subtotal)}</span>
                         </div>
                         {discount > 0 && (
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-sm font-semibold">
                             <span className="text-emerald-600">Coupon{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ""}</span>
                             <span className="text-emerald-600">− {formatRupees(discount)}</span>
                           </div>
                         )}
                         {slot > 0 && (
-                          <div className="flex justify-between text-sm text-gray-500">
+                          <div className="flex justify-between text-sm font-semibold text-black">
                             <span>Slot charge</span>
                             <span>+ {formatRupees(slot)}</span>
                           </div>
                         )}
                         {instant > 0 && (
-                          <div className="flex justify-between text-sm text-gray-500">
+                          <div className="flex justify-between text-sm font-semibold text-black">
                             <span>Instant delivery</span>
                             <span>+ {formatRupees(instant)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                          <span className="font-bold text-black text-sm">Grand Total</span>
-                          <span className="font-extrabold text-[#F97316] text-base">{formatRupees(grand)}</span>
+                        <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                          <span className="font-extrabold text-black text-base">Grand Total</span>
+                          <span className="font-extrabold text-[#F05B4E] text-xl">{formatRupees(grand)}</span>
                         </div>
                       </div>
                     );
@@ -3579,22 +3596,22 @@ export default function Orders() {
                   const statusStyle = status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : status === "partial" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-red-50 text-red-600 border-red-200";
                   const statusLabel = status === "paid" ? "Fully Paid" : status === "partial" ? "Partial" : "Unpaid";
                   return (
-                    <div className="px-6 py-5">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <MaskIcon src={iconWallet} color="#1A56DB" className="w-[16px] h-[16px]" />
-                          <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Payment</span>
+                    <div className="px-6 py-6">
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2.5">
+                          <MaskIcon src={iconWallet} color="#364F9F" className="w-[20px] h-[20px]" />
+                          <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Payment</span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusStyle}`}>{statusLabel}</span>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${statusStyle}`}>{statusLabel}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="bg-gray-50 rounded-xl px-4 py-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-1">Paid</p>
-                          <p className="text-base font-bold text-black">{formatRupees(paid)}</p>
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-[#EEF1F9] rounded-xl px-4 py-3">
+                          <p className="text-xs font-bold tracking-wider text-black mb-1">PAID</p>
+                          <p className="text-lg font-extrabold text-black">{formatRupees(paid)}</p>
                         </div>
-                        <div className="bg-gray-50 rounded-xl px-4 py-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-1">Due</p>
-                          <p className={`text-base font-bold ${due > 0 ? "text-[#F97316]" : "text-emerald-600"}`}>{formatRupees(due)}</p>
+                        <div className="bg-[#EEF1F9] rounded-xl px-4 py-3">
+                          <p className="text-xs font-bold tracking-wider text-black mb-1">DUE</p>
+                          <p className={`text-lg font-extrabold ${due > 0 ? "text-[#F05B4E]" : "text-emerald-600"}`}>{formatRupees(due)}</p>
                         </div>
                       </div>
                       {pays.length > 0 && (
@@ -3603,9 +3620,9 @@ export default function Orders() {
                             const meta = PAYMENT_MODES.find((m) => m.value === String(p?.mode || "").toLowerCase());
                             const label = meta?.label || (p?.mode ? String(p.mode) : "Payment");
                             return (
-                              <div key={i} className="flex items-center justify-between py-2 border-t border-gray-100">
-                                <span className="text-sm text-gray-600">{label}</span>
-                                <span className="text-sm font-semibold text-black">{formatRupees(Number(p?.amount) || 0)}</span>
+                              <div key={i} className="flex items-center justify-between py-2.5 border-t border-gray-100">
+                                <span className="text-sm font-semibold text-black">{label}</span>
+                                <span className="text-sm font-bold text-black">{formatRupees(Number(p?.amount) || 0)}</span>
                               </div>
                             );
                           })}
@@ -3616,42 +3633,42 @@ export default function Orders() {
                 })()}
 
                 {/* ── 4. DELIVERY & HUB ── */}
-                <div className="px-6 py-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MaskIcon src={iconMotorbike} color="#1A56DB" className="w-[16px] h-[16px]" />
-                    <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Delivery & Hub</span>
+                <div className="px-6 py-6">
+                  <div className="flex items-center gap-2.5 mb-5">
+                    <MaskIcon src={iconMotorbike} color="#364F9F" className="w-[20px] h-[20px]" />
+                    <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Delivery & Hub</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
                     <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-0.5">Type</p>
-                      <p className="font-semibold text-black capitalize">{selectedOrder.deliveryType ?? "—"}</p>
+                      <p className="text-xs font-bold tracking-wider text-black mb-1">TYPE</p>
+                      <p className="font-bold text-black capitalize">{selectedOrder.deliveryType ?? "—"}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-0.5">Date</p>
-                      <p className="font-semibold text-black">{formatDate(selectedOrder.createdAt)}</p>
+                      <p className="text-xs font-bold tracking-wider text-black mb-1">DATE</p>
+                      <p className="font-bold text-black">{formatDate(selectedOrder.createdAt)}</p>
                     </div>
                     {selectedOrder.timeslotLabel && (
                       <div className="col-span-2">
-                        <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-0.5">Time Slot</p>
-                        <p className="font-semibold text-black">{selectedOrder.timeslotLabel}</p>
+                        <p className="text-xs font-bold tracking-wider text-black mb-1">TIME SLOT</p>
+                        <p className="font-bold text-black">{selectedOrder.timeslotLabel}</p>
                       </div>
                     )}
                     {selectedOrder.superHubName && (
                       <div>
-                        <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-0.5">Super Hub</p>
-                        <p className="font-semibold text-black">{selectedOrder.superHubName}</p>
+                        <p className="text-xs font-bold tracking-wider text-black mb-1">SUPER HUB</p>
+                        <p className="font-bold text-black">{selectedOrder.superHubName}</p>
                       </div>
                     )}
                     {selectedOrder.subHubName && (
                       <div>
-                        <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-0.5">Sub Hub</p>
-                        <p className="font-semibold text-black">{selectedOrder.subHubName}</p>
+                        <p className="text-xs font-bold tracking-wider text-black mb-1">SUB HUB</p>
+                        <p className="font-bold text-black">{selectedOrder.subHubName}</p>
                       </div>
                     )}
                     {selectedOrder.notes && (
                       <div className="col-span-2 pt-3 border-t border-gray-100">
-                        <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-1">Customer Notes</p>
-                        <p className="text-sm text-gray-600 italic">"{selectedOrder.notes}"</p>
+                        <p className="text-xs font-bold tracking-wider text-black mb-1">CUSTOMER NOTES</p>
+                        <p className="text-sm font-medium text-black italic">"{selectedOrder.notes}"</p>
                       </div>
                     )}
                   </div>
@@ -3659,72 +3676,72 @@ export default function Orders() {
 
                 {/* ── 5. DELIVERY PARTNER ── */}
                 {selectedOrder.deliveryType === "takeaway" ? (
-                  <div className="px-6 py-5">
-                    <div className="flex items-center gap-2 mb-4">
-                      <MaskIcon src={iconGroup} color="#1A56DB" className="w-[16px] h-[16px]" />
-                      <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Delivery Partner</span>
+                  <div className="px-6 py-6">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <MaskIcon src={iconGroup} color="#364F9F" className="w-[20px] h-[20px]" />
+                      <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Delivery Partner</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                        <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                        <ShoppingBag className="w-5 h-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-black">Takeaway order</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Customer picks up from {selectedOrder.pickupLocation || selectedOrder.subHubName || "the store"}.</p>
+                        <p className="text-base font-bold text-black">Takeaway order</p>
+                        <p className="text-sm font-medium text-black mt-0.5">Customer picks up from {selectedOrder.pickupLocation || selectedOrder.subHubName || "the store"}.</p>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="px-6 py-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <MaskIcon src={iconGroup} color="#1A56DB" className="w-[16px] h-[16px]" />
-                        <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Delivery Partner</span>
+                  <div className="px-6 py-6">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center gap-2.5">
+                        <MaskIcon src={iconGroup} color="#364F9F" className="w-[20px] h-[20px]" />
+                        <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Delivery Partner</span>
                       </div>
                       {modalFiltered && (
-                        <button onClick={() => setShowAllPersons((v) => !v)} className="text-[10px] font-semibold text-[#F97316] hover:underline">
+                        <button onClick={() => setShowAllPersons((v) => !v)} className="text-xs font-bold text-[#F05B4E] hover:underline">
                           {showAllPersons ? "Show hub-only" : "Show all"}
                         </button>
                       )}
                     </div>
                     <div className="space-y-3">
                       {selectedOrder.assignedDeliveryPersonName && (
-                        <div className="flex items-center gap-3 px-4 py-3 bg-[#EBF2FF] rounded-xl">
-                          <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0 border border-[#1A56DB]/20">
-                            <MaskIcon src={iconMotorbike} color="#1A56DB" className="w-[15px] h-[15px]" />
+                        <div className="flex items-center gap-3 px-4 py-3 bg-[#EEF1F9] rounded-xl">
+                          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0 border border-[#364F9F]/20">
+                            <MaskIcon src={iconMotorbike} color="#364F9F" className="w-[18px] h-[18px]" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-black truncate">{selectedOrder.assignedDeliveryPersonName}</p>
-                            <p className="text-[11px] text-gray-500">Currently assigned</p>
+                            <p className="text-sm font-extrabold text-black truncate">{selectedOrder.assignedDeliveryPersonName}</p>
+                            <p className="text-xs font-semibold text-black mt-0.5">Currently assigned</p>
                           </div>
                           <button
                             onClick={() => { setSelectedDeliveryPersonId("__none__"); setTimeout(() => handleAssignDelivery(), 0); }}
                             disabled={assigningDelivery}
-                            className="text-[11px] font-semibold text-red-600 hover:bg-red-600 hover:text-white border border-red-200 bg-white px-2.5 py-1 rounded-lg transition-colors"
+                            className="text-xs font-bold text-red-600 hover:bg-red-600 hover:text-white border border-red-200 bg-white px-3 py-1.5 rounded-lg transition-colors"
                           >
                             Remove
                           </button>
                         </div>
                       )}
                       {modalFiltered && !showAllPersons && (
-                        <p className="text-[11px] text-gray-400">
-                          Showing <strong className="text-black">{modalFilteredCount}</strong> partner{modalFilteredCount !== 1 ? "s" : ""} from this order's hub.
+                        <p className="text-sm font-semibold text-black">
+                          Showing <strong>{modalFilteredCount}</strong> partner{modalFilteredCount !== 1 ? "s" : ""} from this order's hub.
                         </p>
                       )}
                       {showAllPersons && (
-                        <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-100 rounded-xl">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-[11px] text-amber-700">Showing all partners. For best practice, assign hub-specific partners only.</p>
+                        <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl">
+                          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm font-semibold text-black">Showing all partners. For best practice, assign hub-specific partners only.</p>
                         </div>
                       )}
                       <div className="flex gap-2">
                         <Select value={selectedDeliveryPersonId} onValueChange={setSelectedDeliveryPersonId}>
-                          <SelectTrigger className="h-10 flex-1 text-sm rounded-xl">
+                          <SelectTrigger className="h-11 flex-1 text-sm rounded-xl font-semibold">
                             <SelectValue placeholder="Select delivery partner..." />
                           </SelectTrigger>
                           <SelectContent>
                             {modalPersons.length === 0 && (
-                              <div className="py-4 text-center text-xs text-gray-400">No delivery partners {modalFiltered && !showAllPersons ? "for this hub" : "available"}</div>
+                              <div className="py-4 text-center text-sm font-semibold text-black">No delivery partners {modalFiltered && !showAllPersons ? "for this hub" : "available"}</div>
                             )}
                             {modalPersons.map((p) => {
                               const hubs = [
@@ -3734,8 +3751,8 @@ export default function Orders() {
                               return (
                                 <SelectItem key={p.id} value={p.id}>
                                   <div className="flex flex-col">
-                                    <span className="font-semibold text-black">{p.name}</span>
-                                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                                    <span className="font-bold text-black">{p.name}</span>
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-black">
                                       {p.phone && <span>{p.phone}</span>}
                                       {hubs.length > 0 && <span>· {hubs.slice(0, 2).join(", ")}{hubs.length > 2 ? ` +${hubs.length - 2}` : ""}</span>}
                                     </div>
@@ -3748,28 +3765,28 @@ export default function Orders() {
                         <Button
                           onClick={handleAssignDelivery}
                           disabled={assigningDelivery || !selectedDeliveryPersonId}
-                          className="bg-[#1A56DB] hover:bg-[#1447B4] h-10 px-5 text-white font-bold rounded-xl"
+                          className="bg-[#364F9F] hover:bg-[#2C418A] h-11 px-5 text-white font-bold rounded-xl"
                         >
                           {assigningDelivery ? "Saving..." : "Assign"}
                         </Button>
                       </div>
                       {deliveryPersons.length === 0 && (
-                        <p className="text-[11px] text-gray-400 italic">No delivery persons found. Add them via Admin Users.</p>
+                        <p className="text-sm font-semibold text-black italic">No delivery persons found. Add them via Admin Users.</p>
                       )}
                     </div>
                   </div>
                 )}
 
                 {/* ── 6. UPDATE STATUS ── */}
-                <div className="px-6 py-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <MaskIcon src={iconClipboardCheck} color="#1A56DB" className="w-[16px] h-[16px]" />
-                      <span className="text-[11px] font-bold text-[#1A56DB] uppercase tracking-widest">Update Status</span>
+                <div className="px-6 py-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2.5">
+                      <MaskIcon src={iconClipboardCheck} color="#364F9F" className="w-[20px] h-[20px]" />
+                      <span className="text-xs font-bold text-[#364F9F] uppercase tracking-widest">Update Status</span>
                     </div>
                     <SolidStatusBadge status={selectedOrder.status} deliveryType={selectedOrder.deliveryType} />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {(() => {
                       const isTakeaway = selectedOrder.deliveryType === "takeaway";
                       const hasAssignee = !!selectedOrder.assignedDeliveryPersonId;
@@ -3780,15 +3797,15 @@ export default function Orders() {
                         <>
                           <div className="flex gap-2">
                             <Select value={editStatus} onValueChange={setEditStatus}>
-                              <SelectTrigger className="h-10 flex-1 text-sm rounded-xl"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="h-11 flex-1 text-sm rounded-xl font-semibold"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {statusOptions.map((s) => {
                                   const disabled = requiresAssignee(s);
                                   return (
                                     <SelectItem key={s} value={s} disabled={disabled}>
-                                      <span className="flex items-center gap-2">
+                                      <span className="flex items-center gap-2 font-semibold">
                                         {STATUS_CONFIG[s].label}
-                                        {disabled && <span className="text-[10px] text-gray-400">(assign partner first)</span>}
+                                        {disabled && <span className="text-xs text-black font-medium">(assign partner first)</span>}
                                       </span>
                                     </SelectItem>
                                   );
@@ -3798,13 +3815,13 @@ export default function Orders() {
                             <Button
                               onClick={handleStatusUpdate}
                               disabled={savingStatus || blocked || editStatus === displayStatus(selectedOrder.status, selectedOrder.deliveryType)}
-                              className="bg-[#F97316] hover:bg-[#ea6c0a] h-10 px-5 text-white font-bold rounded-xl"
+                              className="bg-[#F05B4E] hover:bg-[#D94A3D] h-11 px-5 text-white font-bold rounded-xl"
                             >
                               {savingStatus ? "Saving..." : "Update"}
                             </Button>
                           </div>
                           {blocked && (
-                            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                            <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
                               Assign a delivery partner above before marking as Out for Delivery or Delivered.
                             </p>
                           )}
@@ -3821,7 +3838,7 @@ export default function Orders() {
                 <Button
                   variant="outline"
                   onClick={() => { setSelectedOrder(null); setShowAllPersons(false); }}
-                  className="h-9 px-6 rounded-xl border-gray-200 text-black font-semibold hover:bg-gray-50"
+                  className="h-10 px-6 rounded-xl border-gray-200 text-black font-bold hover:bg-gray-50"
                 >
                   Close
                 </Button>
