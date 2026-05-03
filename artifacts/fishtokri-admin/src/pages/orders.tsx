@@ -2374,7 +2374,7 @@ export default function Orders() {
           <button
             onClick={() => { if (!creatingSaving) { setLocation("/orders"); resetCreateForm(); } }}
             disabled={creatingSaving}
-            className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 text-white transition-colors flex-shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm font-medium hidden sm:inline">Orders</span>
@@ -2397,7 +2397,7 @@ export default function Orders() {
             </Select>
             <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
             <Select value={selectedSubHubId} onValueChange={setSelectedSubHubId} disabled={!selectedSuperHubId || loadingSubHubs}>
-              <SelectTrigger className="h-8 text-xs rounded-full px-3 w-auto max-w-[140px] bg-[#F05B4E] border-none shadow-none text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold disabled:bg-[#F05B4E]/40 disabled:text-white/60">
+              <SelectTrigger className="h-8 text-xs rounded-full px-3 w-auto max-w-[140px] bg-[#F05B4E] border-none shadow-none text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold disabled:opacity-100 disabled:bg-[#F05B4E] disabled:text-white disabled:cursor-not-allowed">
                 <SelectValue placeholder={!selectedSuperHubId ? "Sub Hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
               </SelectTrigger>
               <SelectContent>
@@ -2411,13 +2411,13 @@ export default function Orders() {
           <div className="flex items-center gap-1 flex-shrink-0 bg-white/10 rounded-full p-0.5">
             <button
               onClick={() => setOrderDeliveryType("delivery")}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "delivery" ? "bg-[#F05B4E] text-white shadow-sm" : "text-white/60 hover:text-white"}`}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "delivery" ? "bg-[#F05B4E] text-white shadow-sm" : "text-white"}`}
             >
               Delivery
             </button>
             <button
               onClick={() => setOrderDeliveryType("takeaway")}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "takeaway" ? "bg-[#F05B4E] text-white shadow-sm" : "text-white/60 hover:text-white"}`}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "takeaway" ? "bg-[#F05B4E] text-white shadow-sm" : "text-white"}`}
             >
               Takeaway
             </button>
