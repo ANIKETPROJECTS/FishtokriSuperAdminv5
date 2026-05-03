@@ -2369,8 +2369,8 @@ export default function Orders() {
       {isCreatePage && createPortal(
       <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden">
 
-        {/* ══ TOP HEADER — dark navy matching app sidebar ══ */}
-        <div className="flex-shrink-0 bg-[#162B4D] flex items-center gap-3 px-4 h-14">
+        {/* ══ TOP HEADER ══ */}
+        <div className="flex-shrink-0 bg-[#364F9F] flex items-center gap-3 px-4 h-14">
           <button
             onClick={() => { if (!creatingSaving) { setLocation("/orders"); resetCreateForm(); } }}
             disabled={creatingSaving}
@@ -2386,7 +2386,7 @@ export default function Orders() {
           {/* Hub selectors */}
           <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
             <Select value={selectedSuperHubId} onValueChange={setSelectedSuperHubId} disabled={loadingSuperHubs}>
-              <SelectTrigger className="h-8 text-xs rounded-full px-4 bg-[#F05B4E] border-transparent text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold min-w-[100px]">
+              <SelectTrigger className="h-8 text-xs rounded-full px-3 w-auto max-w-[140px] bg-[#F05B4E] border-none shadow-none text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold">
                 <SelectValue placeholder={loadingSuperHubs ? "Loading..." : "Super Hub"} />
               </SelectTrigger>
               <SelectContent>
@@ -2397,7 +2397,7 @@ export default function Orders() {
             </Select>
             <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
             <Select value={selectedSubHubId} onValueChange={setSelectedSubHubId} disabled={!selectedSuperHubId || loadingSubHubs}>
-              <SelectTrigger className="h-8 text-xs rounded-full px-4 bg-[#F05B4E] border-transparent text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold min-w-[100px] disabled:bg-[#F05B4E]/40 disabled:text-white/60">
+              <SelectTrigger className="h-8 text-xs rounded-full px-3 w-auto max-w-[140px] bg-[#F05B4E] border-none shadow-none text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold disabled:bg-[#F05B4E]/40 disabled:text-white/60">
                 <SelectValue placeholder={!selectedSuperHubId ? "Sub Hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
               </SelectTrigger>
               <SelectContent>
@@ -2539,22 +2539,12 @@ export default function Orders() {
                           });
                         }}
                       >
-                        {/* Product image / icon */}
-                        <div className="w-full aspect-square rounded-t-xl overflow-hidden bg-gray-100">
-                          {p.imageUrl ? (
-                            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-8 h-8 text-gray-300" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-2.5 pb-8">
-                          <p className="text-xs font-bold text-[#162B4D] leading-snug line-clamp-2">{p.name}</p>
-                          {p.category && <p className="text-[11px] text-gray-400 uppercase tracking-wide mt-0.5 truncate">{p.category}</p>}
-                          <p className="text-sm font-extrabold text-[#1A56DB] mt-1">₹{Number(p.price).toLocaleString("en-IN")}</p>
+                        <div className="p-4 pb-10">
+                          <p className="text-sm font-medium text-[#162B4D] leading-snug line-clamp-2">{p.name}</p>
+                          {p.category && <p className="text-xs text-gray-400 uppercase tracking-wide mt-1 truncate">{p.category}</p>}
+                          <p className="text-base font-semibold text-[#1A56DB] mt-2">₹{Number(p.price).toLocaleString("en-IN")}</p>
                           {lowStock && !outOfStock && (
-                            <p className="text-[10px] font-semibold text-amber-500 mt-0.5">Only {stock} left</p>
+                            <p className="text-xs font-medium text-amber-500 mt-1">Only {stock} left</p>
                           )}
                         </div>
                         {/* Cart qty badge / add button */}
