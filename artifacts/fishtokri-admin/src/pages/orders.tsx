@@ -2386,7 +2386,7 @@ export default function Orders() {
           {/* Hub selectors */}
           <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
             <Select value={selectedSuperHubId} onValueChange={setSelectedSuperHubId} disabled={loadingSuperHubs}>
-              <SelectTrigger className="h-8 text-xs w-36 bg-white/10 border-white/20 text-white [&>svg]:text-white/60 hover:bg-white/20 transition-colors">
+              <SelectTrigger className="h-8 text-xs rounded-full px-4 bg-[#F05B4E] border-transparent text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold min-w-[100px]">
                 <SelectValue placeholder={loadingSuperHubs ? "Loading..." : "Super Hub"} />
               </SelectTrigger>
               <SelectContent>
@@ -2397,8 +2397,8 @@ export default function Orders() {
             </Select>
             <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
             <Select value={selectedSubHubId} onValueChange={setSelectedSubHubId} disabled={!selectedSuperHubId || loadingSubHubs}>
-              <SelectTrigger className="h-8 text-xs w-36 bg-white/10 border-white/20 text-white [&>svg]:text-white/60 hover:bg-white/20 transition-colors">
-                <SelectValue placeholder={!selectedSuperHubId ? "Select super hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
+              <SelectTrigger className="h-8 text-xs rounded-full px-4 bg-[#F05B4E] border-transparent text-white [&>svg]:text-white/80 hover:bg-[#e04a3d] transition-colors font-semibold min-w-[100px] disabled:bg-[#F05B4E]/40 disabled:text-white/60">
+                <SelectValue placeholder={!selectedSuperHubId ? "Sub Hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
               </SelectTrigger>
               <SelectContent>
                 {subHubs.map((h) => (
@@ -2408,18 +2408,18 @@ export default function Orders() {
             </Select>
           </div>
           {/* Delivery / Takeaway pill toggle */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0 bg-white/10 rounded-full p-0.5">
             <button
               onClick={() => setOrderDeliveryType("delivery")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "delivery" ? "bg-[#1A56DB] text-white shadow-sm" : "text-white/50 hover:text-white hover:bg-white/10"}`}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "delivery" ? "bg-[#F05B4E] text-white shadow-sm" : "text-white/60 hover:text-white"}`}
             >
-              <Truck className="w-4 h-4" /> Delivery
+              Delivery
             </button>
             <button
               onClick={() => setOrderDeliveryType("takeaway")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "takeaway" ? "bg-emerald-500 text-white shadow-sm" : "text-white/50 hover:text-white hover:bg-white/10"}`}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "takeaway" ? "bg-[#F05B4E] text-white shadow-sm" : "text-white/60 hover:text-white"}`}
             >
-              <Store className="w-4 h-4" /> Takeaway
+              Takeaway
             </button>
           </div>
         </div>
@@ -2427,21 +2427,20 @@ export default function Orders() {
         {/* ══ MAIN BODY — 3 columns ══ */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
 
-          {/* ── LEFT: CATEGORIES — dark navy (matches app sidebar) ── */}
-          <div className="w-48 flex-shrink-0 bg-[#162B4D] flex flex-col overflow-hidden">
+          {/* ── LEFT: CATEGORIES ── */}
+          <div className="w-44 flex-shrink-0 bg-[#364F9F] flex flex-col overflow-hidden">
             <div className="px-4 pt-4 pb-2 flex-shrink-0">
-              <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">Categories</p>
+              <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest">Categories</p>
             </div>
             <div className="flex-1 overflow-y-auto pb-4">
               <button
                 onClick={() => setPickerCategory(null)}
-                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium border-l-2 transition-all text-left ${
-                  !pickerCategory ? "bg-white/10 text-white border-amber-400" : "text-white/60 hover:text-white hover:bg-white/5 border-transparent"
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all text-left ${
+                  !pickerCategory ? "bg-[#F05B4E] text-white" : "text-white hover:bg-white/10"
                 }`}
               >
-                <ShoppingBag className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate flex-1">All Items</span>
-                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${!pickerCategory ? "bg-white/20 text-white" : "bg-white/10 text-white/50"}`}>{subHubProducts.length}</span>
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${!pickerCategory ? "bg-white/25 text-white" : "bg-white/15 text-white/70"}`}>{subHubProducts.length}</span>
               </button>
               {loadingProducts ? (
                 <div className="px-4 py-6 text-xs text-white/40 text-center">Loading...</div>
@@ -2449,13 +2448,12 @@ export default function Orders() {
                 <button
                   key={cat.name}
                   onClick={() => setPickerCategory(cat.name)}
-                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium border-l-2 transition-all text-left ${
-                    pickerCategory === cat.name ? "bg-white/10 text-white border-amber-400" : "text-white/60 hover:text-white hover:bg-white/5 border-transparent"
+                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all text-left ${
+                    pickerCategory === cat.name ? "bg-[#F05B4E] text-white" : "text-white hover:bg-white/10"
                   }`}
                 >
-                  <Package className="w-4 h-4 flex-shrink-0" />
                   <span className="truncate flex-1 capitalize">{cat.name}</span>
-                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${pickerCategory === cat.name ? "bg-white/20 text-white" : "bg-white/10 text-white/50"}`}>{cat.count}</span>
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${pickerCategory === cat.name ? "bg-white/25 text-white" : "bg-white/15 text-white/70"}`}>{cat.count}</span>
                 </button>
               ))}
               {!loadingProducts && productCategories.length === 0 && selectedSubHubId && (
@@ -2502,8 +2500,8 @@ export default function Orders() {
                   <p className="text-sm text-gray-400 mt-1">Use the hub dropdowns in the top bar</p>
                 </div>
               ) : loadingProducts ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {Array.from({ length: 10 }).map((_, i) => (
+                <div className="grid grid-cols-4 gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
                     <Skeleton key={i} className="h-36 rounded-xl" />
                   ))}
                 </div>
@@ -2513,7 +2511,7 @@ export default function Orders() {
                   <p className="text-sm font-medium text-gray-400">No products found</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   {filteredProducts.map((p) => {
                     const pid = String(p._id);
                     const cartItem = selectedProducts.find((sp) => sp.productId === pid);
