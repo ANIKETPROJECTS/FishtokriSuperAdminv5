@@ -698,6 +698,7 @@ export default function Orders() {
     building: "", street: "", area: "", pincode: "",
   });
   const [orderNotes, setOrderNotes] = useState("");
+  const [posRightTab, setPosRightTab] = useState<"cart" | "details">("cart");
 
   // Hub & product picker state
   const [superHubs, setSuperHubs] = useState<any[]>([]);
@@ -2593,405 +2594,436 @@ export default function Orders() {
             </div>
           </div>
 
-          {/* ── RIGHT: ORDER PANEL ── */}
-          <div className="w-80 xl:w-96 flex-shrink-0 border-l border-gray-200 bg-white flex flex-col overflow-hidden">
+          {/* ── RIGHT: ORDER PANEL (tabbed) ── */}
+          <div className="w-[420px] xl:w-[460px] flex-shrink-0 border-l border-gray-200 bg-white flex flex-col overflow-hidden">
 
-            {/* Scrollable sections: Customer + Address + Schedule */}
-            <div className="flex-shrink-0 overflow-y-auto border-b border-gray-200" style={{ maxHeight: "55%" }}>
-
-              {/* ─ CUSTOMER ─ */}
-              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5" /> Customer
-                  </p>
-                  <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
-                    <button onClick={() => { setCustomerMode("existing"); setChosenCustomer(null); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${customerMode === "existing" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Existing</button>
-                    <button onClick={() => { setCustomerMode("new"); setChosenCustomer(null); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${customerMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
-                  </div>
-                </div>
-                {customerMode === "existing" ? (
-                  <Popover open={customerDropdownOpen} onOpenChange={setCustomerDropdownOpen}>
-                    <PopoverTrigger asChild>
-                      <button type="button" className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-left hover:border-[#1A56DB]/50 hover:bg-white transition-all">
-                        {chosenCustomer ? (
-                          <>
-                            <div className="w-8 h-8 rounded-full bg-[#162B4D] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{chosenCustomer.name?.charAt(0).toUpperCase() || "?"}</div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[#162B4D] truncate">{chosenCustomer.name}</p>
-                              <p className="text-xs text-gray-400">{chosenCustomer.phone}</p>
-                            </div>
-                            <button onClick={(e) => { e.stopPropagation(); setChosenCustomer(null); setSelectedAddressIdx(null); }} className="text-gray-300 hover:text-red-400 flex-shrink-0 p-0.5"><X className="w-3.5 h-3.5" /></button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 text-gray-400" />
-                            </div>
-                            <span className="text-sm text-gray-400 flex-1">{loadingCustomers ? "Loading customers..." : "Search customer..."}</span>
-                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          </>
-                        )}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 shadow-xl border border-gray-100 rounded-xl overflow-hidden w-72" align="start" sideOffset={4}>
-                      <div className="p-2 border-b border-gray-100 bg-gray-50">
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input autoFocus value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, phone or email..." className="pl-8 h-8 text-sm" />
-                        </div>
-                      </div>
-                      <div className="max-h-52 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
-                        {filteredCustomers.length === 0 ? (
-                          <div className="p-4 text-center">
-                            <p className="text-sm text-gray-400">No customer found</p>
-                            <button onClick={() => { setCustomerMode("new"); setNewCustomer((n) => ({ ...n, name: customerSearch.trim() })); setCustomerDropdownOpen(false); }} className="text-sm text-[#1A56DB] font-semibold mt-1.5 hover:underline">+ Create new customer</button>
-                          </div>
-                        ) : filteredCustomers.map((c) => (
-                          <button key={c.id} onClick={() => { setChosenCustomer(c); const addrs = Array.isArray(c.addresses) ? c.addresses : []; const defaultIdx = addrs.findIndex((a: any) => getAddressFields(a)?.isDefault); setSelectedAddressIdx(addrs.length ? (defaultIdx >= 0 ? defaultIdx : 0) : null); setOrderAddressMode(addrs.length ? "saved" : "new"); setCustomerDropdownOpen(false); setCustomerSearch(""); if (!newAddress.name) setNewAddress((a) => ({ ...a, name: c.name || "", phone: c.phone || "" })); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-50 transition-colors text-left">
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600 flex-shrink-0">{c.name?.charAt(0).toUpperCase() || "?"}</div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[#162B4D] truncate">{c.name}</p>
-                              <p className="text-xs text-gray-400">{c.phone}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input value={newCustomer.name} onChange={(e) => setNewCustomer((n) => ({ ...n, name: e.target.value }))} placeholder="Full name *" className="h-8 text-sm flex-1" />
-                      <Input value={newCustomer.phone} onChange={(e) => setNewCustomer((n) => ({ ...n, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-8 text-sm w-28" inputMode="numeric" maxLength={10} />
-                    </div>
-                    <div className="flex gap-2">
-                      <Input value={newCustomer.email} onChange={(e) => setNewCustomer((n) => ({ ...n, email: e.target.value }))} placeholder="Email (optional)" className="h-8 text-sm flex-1" type="email" />
-                      <Input value={newCustomer.dateOfBirth} onChange={(e) => setNewCustomer((n) => ({ ...n, dateOfBirth: e.target.value }))} placeholder="Date of birth" className="h-8 text-sm w-32" type="date" title="Date of birth" />
-                    </div>
-                  </div>
+            {/* ── Tab bar ── */}
+            <div className="flex-shrink-0 flex border-b border-gray-200 bg-white">
+              {/* Cart tab */}
+              <button
+                onClick={() => setPosRightTab("cart")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold border-b-2 transition-all ${posRightTab === "cart" ? "border-[#1A56DB] text-[#1A56DB]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Cart
+                {totalItemCount > 0 && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${posRightTab === "cart" ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-500"}`}>{totalItemCount}</span>
                 )}
-              </div>
+              </button>
+              {/* Details tab */}
+              <button
+                onClick={() => setPosRightTab("details")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold border-b-2 transition-all ${posRightTab === "details" ? "border-[#1A56DB] text-[#1A56DB]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+              >
+                <User className="w-4 h-4" />
+                Details
+                {(chosenCustomer || newCustomer.name) && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                )}
+              </button>
+            </div>
 
-              {/* ─ DELIVERY ADDRESS ─ */}
-              {orderDeliveryType === "delivery" && (
-                <div className="px-4 pt-3 pb-3 border-b border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" /> Delivery Address
-                    </p>
-                    {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
-                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
-                        <button onClick={() => setOrderAddressMode("saved")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "saved" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Saved</button>
-                        <button onClick={() => setOrderAddressMode("new")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
+            {/* ════ CART TAB ════ */}
+            {posRightTab === "cart" && (
+              <>
+                {/* Cart items — scrollable */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  {selectedProducts.length === 0 && orderItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                      <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                        <ShoppingBag className="w-7 h-7 text-gray-300" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-400">Cart is empty</p>
+                      <p className="text-xs text-gray-300 mt-1">Tap any product to add it</p>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-3 space-y-1">
+                      {selectedProducts.map((p) => {
+                        const stock = stockOf(p.productId);
+                        const atMax = p.quantity >= stock;
+                        return (
+                          <div key={p.productId} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#162B4D] leading-tight">{p.name}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">₹{Number(p.price).toLocaleString("en-IN")}{p.unit ? ` / ${p.unit}` : ""}</p>
+                            </div>
+                            <div className="flex items-center bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                              <button onClick={() => setSelectedProducts((arr) => p.quantity <= 1 ? arr.filter((x) => x.productId !== p.productId) : arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity - 1 } : x))} className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-200 font-bold text-lg">−</button>
+                              <span className="text-sm font-bold text-gray-700 min-w-[24px] text-center">{p.quantity}</span>
+                              <button disabled={atMax} onClick={() => { if (!atMax) setSelectedProducts((arr) => arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity + 1 } : x)); }} className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-200 font-bold text-lg disabled:opacity-30">+</button>
+                            </div>
+                            <span className="text-sm font-bold text-[#162B4D] w-16 text-right flex-shrink-0">₹{(p.price * p.quantity).toLocaleString("en-IN")}</span>
+                          </div>
+                        );
+                      })}
+                      {orderItems.map((it, idx) => (
+                        <div key={idx} className="flex items-start gap-2 py-2.5 border-b border-gray-100">
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <Input value={it.name} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} placeholder="Item name" className="h-8 text-sm bg-gray-50 border-gray-200" />
+                            <div className="flex gap-1.5">
+                              <Input value={it.price} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} placeholder="₹ Price" type="number" className="h-8 text-sm flex-1 bg-gray-50 border-gray-200" />
+                              <Input value={it.quantity} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} placeholder="Qty" type="number" className="h-8 text-sm w-16 bg-gray-50 border-gray-200" />
+                              <Input value={it.unit} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, unit: e.target.value } : x))} placeholder="Unit" className="h-8 text-sm w-16 bg-gray-50 border-gray-200" />
+                            </div>
+                          </div>
+                          <button onClick={() => setOrderItems((arr) => arr.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400 mt-1 flex-shrink-0 p-1"><X className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                      <button onClick={() => setOrderItems((arr) => [...arr, { name: "", price: "", quantity: "1", unit: "" }])} className="w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#1A56DB] border border-dashed border-[#1A56DB]/40 rounded-lg hover:bg-blue-50 transition-colors mt-1">
+                        <Plus className="w-3.5 h-3.5" /> Add Custom Item
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Coupon + Totals + Payment + Checkout — fixed bottom */}
+                <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-4 space-y-4">
+
+                  {/* Coupon */}
+                  {totalItemCount > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }} placeholder="Enter coupon code" className="pl-9 h-9 text-sm" />
+                        </div>
+                        <Button type="button" variant="outline" onClick={applyCouponByCode} disabled={!couponCode.trim()} className="h-9 text-sm px-4">Apply</Button>
+                      </div>
+                      {couponError && <p className="text-xs text-red-500">{couponError}</p>}
+                      {loadingCoupons ? (
+                        <p className="text-xs text-gray-400">Loading offers...</p>
+                      ) : activeCoupons.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Available Offers</p>
+                          <div className="flex flex-col gap-1.5 max-h-28 overflow-y-auto">
+                            {activeCoupons.map((c) => {
+                              const cid = String(c._id);
+                              const isApplied = appliedCouponIds.includes(cid);
+                              const applicable = isCouponApplicable(c);
+                              const min = Number(c.minOrderAmount) || 0;
+                              const meetsMin = itemsSubtotal >= min;
+                              const canApply = applicable && meetsMin;
+                              const discountLabel = c.type === "percentage" ? `${Number(c.discountValue)}% OFF` : `₹${Number(c.discountValue)} OFF`;
+                              return (
+                                <button key={cid} type="button" onClick={() => toggleCoupon(cid)} disabled={!canApply && !isApplied}
+                                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${isApplied ? "border-emerald-300 bg-emerald-50" : canApply ? "border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/40" : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"}`}
+                                >
+                                  <span className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold ${isApplied ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}>{c.code}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-[#162B4D]">{discountLabel}</p>
+                                    {min > 0 && <p className="text-xs text-gray-400">Min ₹{min.toLocaleString("en-IN")}</p>}
+                                  </div>
+                                  {isApplied ? <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : (!meetsMin && min > 0 ? <span className="text-xs text-gray-400 flex-shrink-0">+₹{(min - itemsSubtotal).toLocaleString("en-IN")} more</span> : null)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {appliedCoupons.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {appliedCoupons.map((c) => (
+                            <span key={String(c._id)} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              <Ticket className="w-3 h-3" />{c.code}
+                              <button onClick={() => setAppliedCouponIds((ids) => ids.filter((id) => id !== String(c._id)))} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Totals */}
+                  <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>Subtotal</span>
+                      <span className="font-medium">₹{itemsSubtotal.toLocaleString("en-IN")}</span>
+                    </div>
+                    {couponDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-emerald-600 font-semibold">
+                        <span className="flex items-center gap-1.5"><Ticket className="w-3.5 h-3.5" />Coupon discount</span>
+                        <span>−₹{couponDiscount.toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    {slotExtraCharge > 0 && (
+                      <div className="flex justify-between text-sm text-[#1A56DB] font-semibold">
+                        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Slot charge</span>
+                        <span>+₹{slotExtraCharge.toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                      <span className="text-base font-bold text-[#162B4D]">Total</span>
+                      <span className="text-2xl font-extrabold text-[#162B4D]">₹{newOrderTotal.toLocaleString("en-IN")}</span>
+                    </div>
+                    {paymentStatus !== "unpaid" && paidTotal > 0 && (
+                      <div className="flex justify-between text-sm text-amber-600 font-semibold">
+                        <span>Amount due</span>
+                        <span>₹{dueAmount.toLocaleString("en-IN")}</span>
                       </div>
                     )}
                   </div>
-                  {chosenCustomer && orderAddressMode === "saved" && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 ? (
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                      {chosenCustomer.addresses.map((a: any, i: number) => {
-                        const f = getAddressFields(a);
-                        const lines = formatAddressLines(a);
+
+                  {/* Payment method */}
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest">Payment</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { mode: "cash", label: "Cash", Icon: Banknote, activeClass: "border-emerald-400 bg-emerald-500 text-white", hoverClass: "border-gray-200 text-gray-500 hover:bg-emerald-50 hover:border-emerald-300" },
+                        { mode: "upi", label: "UPI", Icon: Smartphone, activeClass: "border-[#1A56DB] bg-[#1A56DB] text-white", hoverClass: "border-gray-200 text-gray-500 hover:bg-blue-50 hover:border-blue-300" },
+                        { mode: "card", label: "Card", Icon: CreditCard, activeClass: "border-purple-400 bg-purple-500 text-white", hoverClass: "border-gray-200 text-gray-500 hover:bg-purple-50 hover:border-purple-300" },
+                      ].map(({ mode, label, Icon, activeClass, hoverClass }) => {
+                        const isActive = paymentStatus === "paid" && paymentEntries[0]?.mode === mode && paymentEntries.length === 1;
                         return (
-                          <button key={i} onClick={() => setSelectedAddressIdx(i)} className={`w-full text-left px-3 py-2 rounded-lg border transition-all ${selectedAddressIdx === i ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                            <p className="text-xs font-bold text-[#162B4D]">{f?.label || `Address ${i + 1}`}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 truncate">{lines.slice(0, 2).join(", ")}</p>
+                          <button key={mode} type="button"
+                            onClick={() => { setPaymentStatus("paid"); setPaymentEntries([{ mode, amount: String(newOrderTotal || 0), reference: "" }]); }}
+                            className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-sm font-semibold transition-all ${isActive ? activeClass : hoverClass}`}
+                          >
+                            <Icon className="w-5 h-5" />{label}
                           </button>
                         );
                       })}
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex gap-1.5">
-                        {["Home", "Work", "Other"].map((lbl) => (
-                          <button key={lbl} type="button" onClick={() => setNewAddress((a) => ({ ...a, label: lbl }))} className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${newAddress.label === lbl ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>{lbl}</button>
-                        ))}
+                    {paymentStatus === "paid" && (paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
+                      <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Transaction / Reference ID" className="h-9 text-sm" />
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => { setPaymentStatus("unpaid"); setPaymentEntries([]); }}
+                        className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${paymentStatus === "unpaid" ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
+                      >Unpaid / COD</button>
+                      <button type="button" onClick={() => { setPaymentStatus("partial"); if (paymentEntries.length === 0) setPaymentEntries([{ mode: "cash", amount: "", reference: "" }]); }}
+                        className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${paymentStatus === "partial" ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
+                      >Partial Pay</button>
+                    </div>
+                    {paymentStatus === "partial" && (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
+                            <Input type="number" inputMode="decimal" value={paymentEntries[0]?.amount ?? ""} onChange={(e) => setPaymentEntries((arr) => [{ ...arr[0] ?? { mode: "cash", reference: "" }, amount: e.target.value }])} placeholder="Paid amount" className="pl-7 h-9 text-sm" />
+                          </div>
+                          <select value={paymentEntries[0]?.mode || "cash"} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, mode: e.target.value } : p))} className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/30">
+                            {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                          </select>
+                        </div>
+                        {(paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
+                          <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Reference / Transaction ID" className="h-9 text-sm" />
+                        )}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  <Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Order notes (optional)..." className="text-sm min-h-[40px] resize-none bg-gray-50 border-gray-200" rows={2} />
+
+                  {/* Checkout CTA */}
+                  <Button
+                    onClick={handleCreateOrder}
+                    disabled={creatingSaving || totalItemCount === 0}
+                    className="w-full h-12 bg-[#F05B4E] hover:bg-[#d94a3e] text-white font-bold text-base rounded-xl gap-2 disabled:opacity-50 shadow-md shadow-red-100"
+                  >
+                    {creatingSaving
+                      ? (editingOrderId ? "Saving order..." : "Creating order...")
+                      : editingOrderId
+                        ? <><Pencil className="w-4 h-4" />Save Changes</>
+                        : paymentStatus === "paid"
+                          ? <><Zap className="w-5 h-5" />Checkout · ₹{newOrderTotal.toLocaleString("en-IN")}</>
+                          : paymentStatus === "partial"
+                            ? <><Wallet className="w-5 h-5" />Save Order (Partial)</>
+                            : <><ShoppingBag className="w-5 h-5" />Place Order (Unpaid)</>
+                    }
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* ════ DETAILS TAB ════ */}
+            {posRightTab === "details" && (
+              <div className="flex-1 overflow-y-auto">
+
+                {/* ─ CUSTOMER ─ */}
+                <div className="px-4 pt-4 pb-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest">Customer</p>
+                    <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                      <button onClick={() => { setCustomerMode("existing"); setChosenCustomer(null); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${customerMode === "existing" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Existing</button>
+                      <button onClick={() => { setCustomerMode("new"); setChosenCustomer(null); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${customerMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
+                    </div>
+                  </div>
+                  {customerMode === "existing" ? (
+                    <Popover open={customerDropdownOpen} onOpenChange={setCustomerDropdownOpen}>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-left hover:border-[#1A56DB]/50 hover:bg-white transition-all">
+                          {chosenCustomer ? (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-[#162B4D] flex items-center justify-center text-white text-base font-bold flex-shrink-0">{chosenCustomer.name?.charAt(0).toUpperCase() || "?"}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-[#162B4D]">{chosenCustomer.name}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">{chosenCustomer.phone}</p>
+                              </div>
+                              <button onClick={(e) => { e.stopPropagation(); setChosenCustomer(null); setSelectedAddressIdx(null); }} className="text-gray-300 hover:text-red-400 flex-shrink-0 p-1"><X className="w-4 h-4" /></button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <User className="w-5 h-5 text-gray-400" />
+                              </div>
+                              <span className="text-sm text-gray-400 flex-1">{loadingCustomers ? "Loading customers..." : "Search for a customer..."}</span>
+                              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            </>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 shadow-xl border border-gray-100 rounded-xl overflow-hidden w-80" align="start" sideOffset={4}>
+                        <div className="p-2.5 border-b border-gray-100 bg-gray-50">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input autoFocus value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, phone or email..." className="pl-9 h-9 text-sm" />
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
+                          {filteredCustomers.length === 0 ? (
+                            <div className="p-4 text-center">
+                              <p className="text-sm text-gray-400">No customer found</p>
+                              <button onClick={() => { setCustomerMode("new"); setNewCustomer((n) => ({ ...n, name: customerSearch.trim() })); setCustomerDropdownOpen(false); }} className="text-sm text-[#1A56DB] font-semibold mt-2 hover:underline">+ Create new customer</button>
+                            </div>
+                          ) : filteredCustomers.map((c) => (
+                            <button key={c.id} onClick={() => { setChosenCustomer(c); const addrs = Array.isArray(c.addresses) ? c.addresses : []; const defaultIdx = addrs.findIndex((a: any) => getAddressFields(a)?.isDefault); setSelectedAddressIdx(addrs.length ? (defaultIdx >= 0 ? defaultIdx : 0) : null); setOrderAddressMode(addrs.length ? "saved" : "new"); setCustomerDropdownOpen(false); setCustomerSearch(""); if (!newAddress.name) setNewAddress((a) => ({ ...a, name: c.name || "", phone: c.phone || "" })); }} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors text-left">
+                              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600 flex-shrink-0">{c.name?.charAt(0).toUpperCase() || "?"}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-[#162B4D]">{c.name}</p>
+                                <p className="text-xs text-gray-400">{c.phone}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <div className="space-y-2.5">
                       <div className="grid grid-cols-2 gap-2">
-                        <Input value={newAddress.name} onChange={(e) => setNewAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name *" className="h-8 text-sm col-span-2" />
-                        <Input value={newAddress.phone} onChange={(e) => setNewAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-8 text-sm col-span-2" inputMode="numeric" />
-                        <Input value={newAddress.building} onChange={(e) => setNewAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat *" className="h-8 text-sm col-span-2" />
-                        <Input value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2" />
-                        <Input value={newAddress.area} onChange={(e) => setNewAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-8 text-sm" />
-                        <Input value={newAddress.pincode} onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-8 text-sm" inputMode="numeric" />
+                        <Input value={newCustomer.name} onChange={(e) => setNewCustomer((n) => ({ ...n, name: e.target.value }))} placeholder="Full name *" className="h-9 text-sm col-span-2" />
+                        <Input value={newCustomer.phone} onChange={(e) => setNewCustomer((n) => ({ ...n, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-9 text-sm" inputMode="numeric" maxLength={10} />
+                        <Input value={newCustomer.email} onChange={(e) => setNewCustomer((n) => ({ ...n, email: e.target.value }))} placeholder="Email (optional)" className="h-9 text-sm" type="email" />
+                        <Input value={newCustomer.dateOfBirth} onChange={(e) => setNewCustomer((n) => ({ ...n, dateOfBirth: e.target.value }))} placeholder="Date of birth" className="h-9 text-sm col-span-2" type="date" title="Date of birth" />
                       </div>
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* ─ DELIVERY SCHEDULE ─ */}
-              {orderDeliveryType === "delivery" && (
-                <div className="px-4 pt-3 pb-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" /> Schedule
-                    </p>
-                    <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
-                      <button onClick={() => setOrderScheduleType("instant")} className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "instant" ? "bg-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-                        <Zap className="w-3 h-3" /> Instant
-                      </button>
-                      <button onClick={() => setOrderScheduleType("slot")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "slot" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-                        By Slot
-                      </button>
-                    </div>
-                  </div>
-                  <Input
-                    type="date"
-                    value={orderDate}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={(e) => { setOrderDate(e.target.value); setSelectedTimeslotId(""); }}
-                    className="h-8 text-sm w-full mb-2"
-                  />
-                  {orderScheduleType === "slot" && (
-                    <>
-                      {loadingTimeslots ? (
-                        <p className="text-xs text-gray-400 py-1">Loading slots...</p>
-                      ) : activeTimeslots.length === 0 ? (
-                        <p className="text-xs text-amber-600 flex items-center gap-1 py-1"><Zap className="w-3.5 h-3.5" />No time slots configured — order will be instant</p>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto">
-                          {activeTimeslots.map((t) => {
-                            const id = String(t._id);
-                            const isSelected = selectedTimeslotId === id;
-                            const extra = Number(t.extraCharge) || 0;
-                            return (
-                              <button
-                                key={id}
-                                type="button"
-                                onClick={() => setSelectedTimeslotId(id)}
-                                className={`flex items-start gap-2 p-2 rounded-lg border transition-all text-left ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
-                              >
-                                <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-400"}`}>
-                                  {t.isInstant ? <Zap className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-[#162B4D] truncate leading-tight">{t.label}</p>
-                                  <p className="text-[11px] text-gray-400 mt-0.5">{t.startTime}–{t.endTime}</p>
-                                  {extra > 0 && <p className="text-[11px] font-semibold text-[#1A56DB]">+₹{extra}</p>}
-                                </div>
-                                {isSelected && <Check className="w-3.5 h-3.5 text-[#1A56DB] flex-shrink-0 mt-0.5" />}
-                              </button>
-                            );
-                          })}
+                {/* ─ DELIVERY ADDRESS ─ */}
+                {orderDeliveryType === "delivery" && (
+                  <div className="px-4 pt-4 pb-4 border-b border-gray-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" /> Delivery Address
+                      </p>
+                      {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
+                        <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                          <button onClick={() => setOrderAddressMode("saved")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "saved" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Saved</button>
+                          <button onClick={() => setOrderAddressMode("new")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
                         </div>
                       )}
-                    </>
-                  )}
-                  {orderScheduleType === "instant" && (
-                    <p className="text-xs text-amber-700 flex items-center gap-1.5 py-1"><Zap className="w-3.5 h-3.5" />Will be dispatched as soon as possible</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ─ CART ITEMS (scrollable) ─ */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {selectedProducts.length === 0 && orderItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
-                    <ShoppingBag className="w-6 h-6 text-gray-300" />
-                  </div>
-                  <p className="text-sm font-semibold text-gray-400">Cart is empty</p>
-                  <p className="text-xs text-gray-300 mt-1">Tap a product to add it</p>
-                </div>
-              ) : (
-                <div className="px-4 py-3 space-y-2">
-                  {selectedProducts.map((p) => {
-                    const stock = stockOf(p.productId);
-                    const atMax = p.quantity >= stock;
-                    return (
-                      <div key={p.productId} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#162B4D] leading-tight truncate">{p.name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">₹{Number(p.price).toLocaleString("en-IN")}{p.unit ? ` / ${p.unit}` : ""}</p>
-                        </div>
-                        <div className="flex items-center bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                          <button onClick={() => setSelectedProducts((arr) => p.quantity <= 1 ? arr.filter((x) => x.productId !== p.productId) : arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity - 1 } : x))} className="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 font-bold text-base">−</button>
-                          <span className="text-sm font-bold text-gray-700 min-w-[20px] text-center">{p.quantity}</span>
-                          <button disabled={atMax} onClick={() => { if (!atMax) setSelectedProducts((arr) => arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity + 1 } : x)); }} className="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 font-bold text-base disabled:opacity-30">+</button>
-                        </div>
-                        <span className="text-sm font-bold text-[#162B4D] w-16 text-right flex-shrink-0">₹{(p.price * p.quantity).toLocaleString("en-IN")}</span>
-                      </div>
-                    );
-                  })}
-                  {orderItems.map((it, idx) => (
-                    <div key={idx} className="flex items-start gap-2 py-2 border-b border-gray-100">
-                      <div className="flex-1 min-w-0 space-y-1.5">
-                        <Input value={it.name} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} placeholder="Item name" className="h-7 text-sm bg-gray-50 border-gray-200" />
-                        <div className="flex gap-1.5">
-                          <Input value={it.price} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} placeholder="₹ Price" type="number" className="h-7 text-sm flex-1 bg-gray-50 border-gray-200" />
-                          <Input value={it.quantity} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} placeholder="Qty" type="number" className="h-7 text-sm w-14 bg-gray-50 border-gray-200" />
-                          <Input value={it.unit} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, unit: e.target.value } : x))} placeholder="Unit" className="h-7 text-sm w-14 bg-gray-50 border-gray-200" />
-                        </div>
-                      </div>
-                      <button onClick={() => setOrderItems((arr) => arr.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400 mt-1 flex-shrink-0"><X className="w-4 h-4" /></button>
                     </div>
-                  ))}
-                  <button onClick={() => setOrderItems((arr) => [...arr, { name: "", price: "", quantity: "1", unit: "" }])} className="w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#1A56DB] border border-dashed border-[#1A56DB]/40 rounded-lg hover:bg-blue-50 transition-colors">
-                    <Plus className="w-3.5 h-3.5" /> Add Custom Item
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* ─ TOTALS + COUPONS + PAYMENT + CHECKOUT (fixed bottom) ─ */}
-            <div className="flex-shrink-0 border-t-2 border-gray-100 bg-white px-4 py-3 space-y-3">
-
-              {/* Coupon */}
-              {totalItemCount > 0 && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                      <Input value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }} placeholder="Enter coupon code" className="pl-8 h-8 text-sm" />
-                    </div>
-                    <Button type="button" variant="outline" onClick={applyCouponByCode} disabled={!couponCode.trim()} className="h-8 text-sm px-3">Apply</Button>
-                  </div>
-                  {couponError && <p className="text-xs text-red-500">{couponError}</p>}
-                  {loadingCoupons ? (
-                    <p className="text-xs text-gray-400">Loading offers...</p>
-                  ) : activeCoupons.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Available Offers</p>
-                      <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
-                        {activeCoupons.map((c) => {
-                          const cid = String(c._id);
-                          const isApplied = appliedCouponIds.includes(cid);
-                          const applicable = isCouponApplicable(c);
-                          const min = Number(c.minOrderAmount) || 0;
-                          const meetsMin = itemsSubtotal >= min;
-                          const canApply = applicable && meetsMin;
-                          const discountLabel = c.type === "percentage" ? `${Number(c.discountValue)}% OFF` : `₹${Number(c.discountValue)} OFF`;
+                    {chosenCustomer && orderAddressMode === "saved" && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 ? (
+                      <div className="space-y-2">
+                        {chosenCustomer.addresses.map((a: any, i: number) => {
+                          const f = getAddressFields(a);
+                          const lines = formatAddressLines(a);
                           return (
-                            <button key={cid} type="button" onClick={() => toggleCoupon(cid)} disabled={!canApply && !isApplied}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${isApplied ? "border-emerald-300 bg-emerald-50" : canApply ? "border-gray-200 bg-gray-50 hover:border-emerald-200 hover:bg-emerald-50/40" : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"}`}
-                            >
-                              <span className={`flex-shrink-0 px-2 py-0.5 rounded text-xs font-bold ${isApplied ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-600"}`}>{c.code}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-[#162B4D]">{discountLabel}</p>
-                                {min > 0 && <p className="text-[11px] text-gray-400">Min ₹{min.toLocaleString("en-IN")}</p>}
-                              </div>
-                              {isApplied ? <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : (!meetsMin && min > 0 ? <span className="text-[10px] text-gray-400 flex-shrink-0">₹{(min - itemsSubtotal).toLocaleString("en-IN")} more</span> : null)}
+                            <button key={i} onClick={() => setSelectedAddressIdx(i)} className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${selectedAddressIdx === i ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                              <p className="text-sm font-bold text-[#162B4D]">{f?.label || `Address ${i + 1}`}</p>
+                              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{lines.slice(0, 3).join(", ")}</p>
                             </button>
                           );
                         })}
                       </div>
-                    </div>
-                  )}
-                  {appliedCoupons.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {appliedCoupons.map((c) => (
-                        <span key={String(c._id)} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                          <Ticket className="w-3 h-3" />{c.code}
-                          <button onClick={() => setAppliedCouponIds((ids) => ids.filter((id) => id !== String(c._id)))} className="hover:text-red-500 ml-0.5"><X className="w-3 h-3" /></button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Totals */}
-              <div className="bg-gray-50 rounded-xl px-3 py-2.5 space-y-1.5">
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>Subtotal</span>
-                  <span className="font-medium">₹{itemsSubtotal.toLocaleString("en-IN")}</span>
-                </div>
-                {couponDiscount > 0 && (
-                  <div className="flex justify-between text-sm text-emerald-600">
-                    <span className="flex items-center gap-1"><Ticket className="w-3.5 h-3.5" />Coupon discount</span>
-                    <span className="font-semibold">−₹{couponDiscount.toLocaleString("en-IN")}</span>
-                  </div>
-                )}
-                {slotExtraCharge > 0 && (
-                  <div className="flex justify-between text-sm text-[#1A56DB]">
-                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Slot charge</span>
-                    <span className="font-semibold">+₹{slotExtraCharge.toLocaleString("en-IN")}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
-                  <span className="text-base font-bold text-[#162B4D]">Total</span>
-                  <span className="text-xl font-extrabold text-[#162B4D]">₹{newOrderTotal.toLocaleString("en-IN")}</span>
-                </div>
-                {paymentStatus !== "unpaid" && paidTotal > 0 && (
-                  <div className="flex justify-between text-sm text-amber-600">
-                    <span>Amount due</span>
-                    <span className="font-bold">₹{dueAmount.toLocaleString("en-IN")}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Payment method */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest">Payment Method</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { mode: "cash", label: "Cash", Icon: Banknote, activeClass: "border-emerald-400 bg-emerald-500 text-white", hoverClass: "border-gray-200 text-gray-600 hover:bg-emerald-50 hover:border-emerald-300" },
-                    { mode: "upi", label: "UPI", Icon: Smartphone, activeClass: "border-[#1A56DB] bg-[#1A56DB] text-white", hoverClass: "border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-300" },
-                    { mode: "card", label: "Card", Icon: CreditCard, activeClass: "border-purple-400 bg-purple-500 text-white", hoverClass: "border-gray-200 text-gray-600 hover:bg-purple-50 hover:border-purple-300" },
-                  ].map(({ mode, label, Icon, activeClass, hoverClass }) => {
-                    const isActive = paymentStatus === "paid" && paymentEntries[0]?.mode === mode && paymentEntries.length === 1;
-                    return (
-                      <button key={mode} type="button"
-                        onClick={() => { setPaymentStatus("paid"); setPaymentEntries([{ mode, amount: String(newOrderTotal || 0), reference: "" }]); }}
-                        className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${isActive ? activeClass : hoverClass}`}
-                      >
-                        <Icon className="w-5 h-5" />{label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {paymentStatus === "paid" && (paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
-                  <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Transaction / Reference ID" className="h-8 text-sm" />
-                )}
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => { setPaymentStatus("unpaid"); setPaymentEntries([]); }}
-                    className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${paymentStatus === "unpaid" ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
-                  >Unpaid / COD</button>
-                  <button type="button" onClick={() => { setPaymentStatus("partial"); if (paymentEntries.length === 0) setPaymentEntries([{ mode: "cash", amount: "", reference: "" }]); }}
-                    className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${paymentStatus === "partial" ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
-                  >Partial Pay</button>
-                </div>
-                {paymentStatus === "partial" && (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
-                        <Input type="number" inputMode="decimal" value={paymentEntries[0]?.amount ?? ""} onChange={(e) => setPaymentEntries((arr) => [{ ...arr[0] ?? { mode: "cash", reference: "" }, amount: e.target.value }])} placeholder="Paid amount" className="pl-7 h-8 text-sm" />
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="flex gap-2">
+                          {["Home", "Work", "Other"].map((lbl) => (
+                            <button key={lbl} type="button" onClick={() => setNewAddress((a) => ({ ...a, label: lbl }))} className={`px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${newAddress.label === lbl ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>{lbl}</button>
+                          ))}
+                        </div>
+                        <Input value={newAddress.name} onChange={(e) => setNewAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name *" className="h-9 text-sm" />
+                        <Input value={newAddress.phone} onChange={(e) => setNewAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-9 text-sm" inputMode="numeric" />
+                        <Input value={newAddress.building} onChange={(e) => setNewAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat *" className="h-9 text-sm" />
+                        <Input value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-9 text-sm" />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input value={newAddress.area} onChange={(e) => setNewAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-9 text-sm" />
+                          <Input value={newAddress.pincode} onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-9 text-sm" inputMode="numeric" />
+                        </div>
                       </div>
-                      <select value={paymentEntries[0]?.mode || "cash"} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, mode: e.target.value } : p))} className="h-8 px-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/30">
-                        {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                      </select>
-                    </div>
-                    {(paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
-                      <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Reference / Transaction ID" className="h-8 text-sm" />
                     )}
                   </div>
                 )}
+
+                {/* ─ DELIVERY SCHEDULE ─ */}
+                {orderDeliveryType === "delivery" && (
+                  <div className="px-4 pt-4 pb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" /> Delivery Schedule
+                      </p>
+                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                        <button onClick={() => setOrderScheduleType("instant")} className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "instant" ? "bg-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                          <Zap className="w-3 h-3" /> Instant
+                        </button>
+                        <button onClick={() => setOrderScheduleType("slot")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "slot" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                          By Slot
+                        </button>
+                      </div>
+                    </div>
+                    <Input
+                      type="date"
+                      value={orderDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => { setOrderDate(e.target.value); setSelectedTimeslotId(""); }}
+                      className="h-9 text-sm w-full mb-3"
+                    />
+                    {orderScheduleType === "slot" && (
+                      <>
+                        {loadingTimeslots ? (
+                          <p className="text-sm text-gray-400 py-1">Loading slots...</p>
+                        ) : activeTimeslots.length === 0 ? (
+                          <p className="text-sm text-amber-600 flex items-center gap-2 py-1"><Zap className="w-4 h-4" />No time slots configured — will be instant</p>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            {activeTimeslots.map((t) => {
+                              const id = String(t._id);
+                              const isSelected = selectedTimeslotId === id;
+                              const extra = Number(t.extraCharge) || 0;
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => setSelectedTimeslotId(id)}
+                                  className={`flex items-start gap-2.5 p-3 rounded-xl border-2 transition-all text-left ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                                >
+                                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-400"}`}>
+                                    {t.isInstant ? <Zap className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-[#162B4D] leading-tight">{t.label}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">{t.startTime}–{t.endTime}</p>
+                                    {extra > 0 && <p className="text-xs font-semibold text-[#1A56DB] mt-0.5">+₹{extra}</p>}
+                                  </div>
+                                  {isSelected && <Check className="w-4 h-4 text-[#1A56DB] flex-shrink-0 mt-0.5" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {orderScheduleType === "instant" && (
+                      <p className="text-sm text-amber-700 flex items-center gap-2 py-1"><Zap className="w-4 h-4" />Will be dispatched as soon as possible</p>
+                    )}
+                  </div>
+                )}
+
               </div>
+            )}
 
-              {/* Notes */}
-              <Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Order notes (optional)..." className="text-sm min-h-[36px] resize-none bg-gray-50 border-gray-200" rows={2} />
-
-              {/* Checkout CTA */}
-              <Button
-                onClick={handleCreateOrder}
-                disabled={creatingSaving || totalItemCount === 0}
-                className="w-full h-12 bg-[#F05B4E] hover:bg-[#d94a3e] text-white font-bold text-base rounded-xl gap-2 disabled:opacity-50 shadow-md shadow-red-100"
-              >
-                {creatingSaving
-                  ? (editingOrderId ? "Saving order..." : "Creating order...")
-                  : editingOrderId
-                    ? <><Pencil className="w-4 h-4" />Save Changes</>
-                    : paymentStatus === "paid"
-                      ? <><Zap className="w-5 h-5" />Checkout · ₹{newOrderTotal.toLocaleString("en-IN")}</>
-                      : paymentStatus === "partial"
-                        ? <><Wallet className="w-5 h-5" />Save Order (Partial)</>
-                        : <><ShoppingBag className="w-5 h-5" />Place Order (Unpaid)</>
-                }
-              </Button>
-            </div>
           </div>
 
         </div>{/* end 3-col body */}
