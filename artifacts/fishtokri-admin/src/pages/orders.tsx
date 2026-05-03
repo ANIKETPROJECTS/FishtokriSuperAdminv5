@@ -2364,656 +2364,639 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Order Page — POS Layout */}
-      {isCreatePage && (
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col" style={{ height: "calc(100vh - 100px)" }}>
-        {/* ── TOP HEADER BAR ── */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 bg-white flex-shrink-0">
-          <Button
-            variant="ghost" size="sm"
+      {/* Create Order Page — Full-screen POS (portal bypasses layout header+sidebar) */}
+      {isCreatePage && createPortal(
+      <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden">
+
+        {/* ══ TOP HEADER — dark navy matching app sidebar ══ */}
+        <div className="flex-shrink-0 bg-[#162B4D] flex items-center gap-3 px-4 h-14">
+          <button
             onClick={() => { if (!creatingSaving) { setLocation("/orders"); resetCreateForm(); } }}
             disabled={creatingSaving}
-            className="h-8 w-8 p-0 flex-shrink-0"
+            className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors flex-shrink-0"
           >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex-shrink-0">
-            <h1 className="text-sm font-bold text-[#162B4D]">{editingOrderId ? "Edit Order" : "New Order"}</h1>
-          </div>
-          <div className="flex items-center gap-2 flex-1">
+            <ChevronLeft className="w-5 h-5" />
+            <span className="text-sm font-medium hidden sm:inline">Orders</span>
+          </button>
+          <div className="w-px h-5 bg-white/20 flex-shrink-0" />
+          <h1 className="text-base font-bold text-white flex-shrink-0">
+            {editingOrderId ? "Edit Order" : "New Order"}
+          </h1>
+          {/* Hub selectors */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
             <Select value={selectedSuperHubId} onValueChange={setSelectedSuperHubId} disabled={loadingSuperHubs}>
-              <SelectTrigger className="h-8 text-xs w-40">
+              <SelectTrigger className="h-8 text-xs w-36 bg-white/10 border-white/20 text-white [&>svg]:text-white/60 hover:bg-white/20 transition-colors">
                 <SelectValue placeholder={loadingSuperHubs ? "Loading..." : "Super Hub"} />
               </SelectTrigger>
               <SelectContent>
                 {superHubs.map((h) => (
-                  <SelectItem key={h.id} value={h.id}><span className="text-xs">{h.name}</span></SelectItem>
+                  <SelectItem key={h.id} value={h.id}><span className="text-sm">{h.name}</span></SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
             <Select value={selectedSubHubId} onValueChange={setSelectedSubHubId} disabled={!selectedSuperHubId || loadingSubHubs}>
-              <SelectTrigger className="h-8 text-xs w-40">
-                <SelectValue placeholder={!selectedSuperHubId ? "Pick super hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
+              <SelectTrigger className="h-8 text-xs w-36 bg-white/10 border-white/20 text-white [&>svg]:text-white/60 hover:bg-white/20 transition-colors">
+                <SelectValue placeholder={!selectedSuperHubId ? "Select super hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
               </SelectTrigger>
               <SelectContent>
                 {subHubs.map((h) => (
-                  <SelectItem key={h.id} value={h.id}><span className="text-xs">{h.name}</span></SelectItem>
+                  <SelectItem key={h.id} value={h.id}><span className="text-sm">{h.name}</span></SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          {/* Order type toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 flex-shrink-0">
+          {/* Delivery / Takeaway pill toggle */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={() => setOrderDeliveryType("delivery")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${orderDeliveryType === "delivery" ? "bg-white text-[#1A56DB] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "delivery" ? "bg-[#1A56DB] text-white shadow-sm" : "text-white/50 hover:text-white hover:bg-white/10"}`}
             >
-              <Truck className="w-3.5 h-3.5" /> Delivery
+              <Truck className="w-4 h-4" /> Delivery
             </button>
             <button
               onClick={() => setOrderDeliveryType("takeaway")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${orderDeliveryType === "takeaway" ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${orderDeliveryType === "takeaway" ? "bg-emerald-500 text-white shadow-sm" : "text-white/50 hover:text-white hover:bg-white/10"}`}
             >
-              <Store className="w-3.5 h-3.5" /> Takeaway
+              <Store className="w-4 h-4" /> Takeaway
             </button>
           </div>
         </div>
 
-        {/* ── MAIN BODY — 3 columns ── */}
-        <div className="flex flex-1 min-h-0">
+        {/* ══ MAIN BODY — 3 columns ══ */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* ══ LEFT: CATEGORIES ══ */}
-        <div className="w-44 flex-shrink-0 border-r border-gray-100 bg-gray-50 flex flex-col overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-gray-100 bg-white flex-shrink-0">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Categories</p>
-          </div>
-          <div className="flex-1 overflow-y-auto py-1">
-            <button
-              onClick={() => setPickerCategory(null)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors text-left ${!pickerCategory ? "bg-[#1A56DB] text-white" : "text-gray-600 hover:bg-gray-100"}`}
-            >
-              <ShoppingBag className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="truncate">All Items</span>
-              <span className={`ml-auto text-[10px] font-bold flex-shrink-0 ${!pickerCategory ? "text-white/70" : "text-gray-400"}`}>{subHubProducts.length}</span>
-            </button>
-            {loadingProducts ? (
-              <div className="px-3 py-4 text-[11px] text-gray-400 text-center">Loading...</div>
-            ) : filteredCategories.map((cat) => (
+          {/* ── LEFT: CATEGORIES — dark navy (matches app sidebar) ── */}
+          <div className="w-48 flex-shrink-0 bg-[#162B4D] flex flex-col overflow-hidden">
+            <div className="px-4 pt-4 pb-2 flex-shrink-0">
+              <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">Categories</p>
+            </div>
+            <div className="flex-1 overflow-y-auto pb-4">
               <button
-                key={cat.name}
-                onClick={() => setPickerCategory(cat.name)}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors text-left ${pickerCategory === cat.name ? "bg-[#1A56DB] text-white" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setPickerCategory(null)}
+                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium border-l-2 transition-all text-left ${
+                  !pickerCategory ? "bg-white/10 text-white border-amber-400" : "text-white/60 hover:text-white hover:bg-white/5 border-transparent"
+                }`}
               >
-                <Package className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="truncate capitalize">{cat.name}</span>
-                <span className={`ml-auto text-[10px] font-bold flex-shrink-0 ${pickerCategory === cat.name ? "text-white/70" : "text-gray-400"}`}>{cat.count}</span>
+                <ShoppingBag className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate flex-1">All Items</span>
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${!pickerCategory ? "bg-white/20 text-white" : "bg-white/10 text-white/50"}`}>{subHubProducts.length}</span>
               </button>
-            ))}
-            {!loadingProducts && productCategories.length === 0 && selectedSubHubId && (
-              <p className="px-3 py-3 text-[11px] text-gray-400 text-center">No products</p>
-            )}
-            {!selectedSubHubId && (
-              <p className="px-3 py-3 text-[11px] text-gray-400 text-center">Select a hub first</p>
-            )}
-          </div>
-        </div>
-
-        {/* ══ CENTER: PRODUCTS GRID ══ */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Search bar */}
-          <div className="px-3 py-2.5 border-b border-gray-100 bg-white flex-shrink-0 flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <Input
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                placeholder={pickerCategory ? `Search in ${pickerCategory}...` : "Search menu items..."}
-                className="pl-8 h-8 text-xs"
-              />
-              {productSearch && (
-                <button onClick={() => setProductSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  <X className="w-3.5 h-3.5" />
+              {loadingProducts ? (
+                <div className="px-4 py-6 text-xs text-white/40 text-center">Loading...</div>
+              ) : filteredCategories.map((cat) => (
+                <button
+                  key={cat.name}
+                  onClick={() => setPickerCategory(cat.name)}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium border-l-2 transition-all text-left ${
+                    pickerCategory === cat.name ? "bg-white/10 text-white border-amber-400" : "text-white/60 hover:text-white hover:bg-white/5 border-transparent"
+                  }`}
+                >
+                  <Package className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate flex-1 capitalize">{cat.name}</span>
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${pickerCategory === cat.name ? "bg-white/20 text-white" : "bg-white/10 text-white/50"}`}>{cat.count}</span>
                 </button>
+              ))}
+              {!loadingProducts && productCategories.length === 0 && selectedSubHubId && (
+                <p className="px-4 py-4 text-xs text-white/30 text-center">No products loaded</p>
+              )}
+              {!selectedSubHubId && (
+                <p className="px-4 py-4 text-xs text-white/30 text-center">Select a hub to load menu</p>
               )}
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">
-              {filteredProducts.length} item{filteredProducts.length !== 1 ? "s" : ""}
-              {pickerCategory ? ` in ${pickerCategory}` : " available"}
-            </span>
           </div>
 
-          {/* Products grid */}
-          <div className="flex-1 overflow-y-auto p-3">
-            {!selectedSubHubId ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-3">
-                  <Building2 className="w-5 h-5 text-[#1A56DB]" />
+          {/* ── CENTER: PRODUCTS GRID ── */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50">
+            {/* Search bar */}
+            <div className="px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0 flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder={pickerCategory ? `Search in ${pickerCategory}...` : "Search menu items..."}
+                  className="pl-9 h-9 text-sm bg-gray-50 border-gray-200 focus:bg-white"
+                />
+                {productSearch && (
+                  <button onClick={() => setProductSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap font-medium">
+                {filteredProducts.length} item{filteredProducts.length !== 1 ? "s" : ""}
+                {pickerCategory ? ` in ${pickerCategory}` : ""}
+              </span>
+            </div>
+
+            {/* Product grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {!selectedSubHubId ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-[#162B4D]/10 flex items-center justify-center mb-4">
+                    <Building2 className="w-7 h-7 text-[#162B4D]/40" />
+                  </div>
+                  <p className="text-base font-semibold text-gray-600">Select a hub to view menu</p>
+                  <p className="text-sm text-gray-400 mt-1">Use the hub dropdowns in the top bar</p>
                 </div>
-                <p className="text-sm font-semibold text-gray-600">Select a hub to load products</p>
-                <p className="text-xs text-gray-400 mt-1">Use the dropdowns in the header above</p>
-              </div>
-            ) : loadingProducts ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="h-24 rounded-xl" />
-                ))}
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center">
-                <Package className="w-8 h-8 text-gray-200 mb-2" />
-                <p className="text-sm text-gray-400">No products found</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {filteredProducts.map((p) => {
-                  const pid = String(p._id);
-                  const cartItem = selectedProducts.find((sp) => sp.productId === pid);
-                  const stock = Number(p.quantity) || 0;
-                  const outOfStock = stock <= 0;
-                  const atMax = cartItem ? cartItem.quantity >= stock : false;
-                  return (
-                    <div
-                      key={pid}
-                      className={`relative rounded-xl border transition-all select-none ${
-                        outOfStock ? "border-gray-100 bg-gray-50 opacity-50" :
-                        cartItem ? "border-[#1A56DB] bg-blue-50/50 shadow-sm" :
-                        "border-gray-200 bg-white hover:border-[#1A56DB]/50 hover:shadow-sm cursor-pointer"
-                      }`}
-                      onClick={() => {
-                        if (outOfStock) { toast({ title: "Out of stock", description: `${p.name} is unavailable.`, variant: "destructive" }); return; }
-                        if (atMax) { toast({ title: "Stock limit reached", description: `Only ${stock} available.`, variant: "destructive" }); return; }
-                        setSelectedProducts((prev) => {
-                          const exists = prev.find((sp) => sp.productId === pid);
-                          if (exists) return prev.map((sp) => sp.productId === pid ? { ...sp, quantity: sp.quantity + 1 } : sp);
-                          return [...prev, { productId: pid, name: p.name, price: Number(p.price) || 0, unit: p.unit ?? "", quantity: 1 }];
-                        });
-                      }}
-                    >
-                      {/* Item image or icon */}
-                      <div className="w-full aspect-square rounded-t-xl overflow-hidden bg-gray-100">
-                        {p.imageUrl ? (
-                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-6 h-6 text-gray-300" />
+              ) : loadingProducts ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <Skeleton key={i} className="h-36 rounded-xl" />
+                  ))}
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-center">
+                  <Package className="w-10 h-10 text-gray-200 mb-3" />
+                  <p className="text-sm font-medium text-gray-400">No products found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {filteredProducts.map((p) => {
+                    const pid = String(p._id);
+                    const cartItem = selectedProducts.find((sp) => sp.productId === pid);
+                    const stock = Number(p.quantity) || 0;
+                    const outOfStock = stock <= 0;
+                    const lowStock = stock > 0 && stock <= 5;
+                    const atMax = cartItem ? cartItem.quantity >= stock : false;
+                    return (
+                      <div
+                        key={pid}
+                        className={`relative rounded-xl border-2 transition-all select-none ${
+                          outOfStock
+                            ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                            : cartItem
+                              ? "border-[#1A56DB] bg-blue-50/60 shadow-md shadow-blue-100"
+                              : "border-gray-200 bg-white hover:border-[#1A56DB]/60 hover:shadow-md cursor-pointer"
+                        }`}
+                        onClick={() => {
+                          if (outOfStock) { toast({ title: "Out of stock", description: `${p.name} is unavailable.`, variant: "destructive" }); return; }
+                          if (atMax) { toast({ title: "Stock limit reached", description: `Only ${stock} available.`, variant: "destructive" }); return; }
+                          setSelectedProducts((prev) => {
+                            const exists = prev.find((sp) => sp.productId === pid);
+                            if (exists) return prev.map((sp) => sp.productId === pid ? { ...sp, quantity: sp.quantity + 1 } : sp);
+                            return [...prev, { productId: pid, name: p.name, price: Number(p.price) || 0, unit: p.unit ?? "", quantity: 1 }];
+                          });
+                        }}
+                      >
+                        {/* Product image / icon */}
+                        <div className="w-full aspect-square rounded-t-xl overflow-hidden bg-gray-100">
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-8 h-8 text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2.5 pb-8">
+                          <p className="text-xs font-bold text-[#162B4D] leading-snug line-clamp-2">{p.name}</p>
+                          {p.category && <p className="text-[11px] text-gray-400 uppercase tracking-wide mt-0.5 truncate">{p.category}</p>}
+                          <p className="text-sm font-extrabold text-[#1A56DB] mt-1">₹{Number(p.price).toLocaleString("en-IN")}</p>
+                          {lowStock && !outOfStock && (
+                            <p className="text-[10px] font-semibold text-amber-500 mt-0.5">Only {stock} left</p>
+                          )}
+                        </div>
+                        {/* Cart qty badge / add button */}
+                        {cartItem ? (
+                          <div
+                            className="absolute bottom-2 right-2 flex items-center bg-[#1A56DB] rounded-lg overflow-hidden shadow-sm"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              className="w-7 h-7 flex items-center justify-center text-white hover:bg-[#1447B4] font-bold text-base"
+                              onClick={(e) => { e.stopPropagation(); setSelectedProducts((arr) => cartItem.quantity <= 1 ? arr.filter((x) => x.productId !== pid) : arr.map((x) => x.productId === pid ? { ...x, quantity: x.quantity - 1 } : x)); }}
+                            >−</button>
+                            <span className="text-xs font-bold text-white min-w-[18px] text-center">{cartItem.quantity}</span>
+                            <button
+                              className="w-7 h-7 flex items-center justify-center text-white hover:bg-[#1447B4] font-bold text-base disabled:opacity-40"
+                              disabled={atMax}
+                              onClick={(e) => { e.stopPropagation(); if (!atMax) setSelectedProducts((arr) => arr.map((x) => x.productId === pid ? { ...x, quantity: x.quantity + 1 } : x)); }}
+                            >+</button>
+                          </div>
+                        ) : !outOfStock && (
+                          <div className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-[#1A56DB] flex items-center justify-center shadow-sm">
+                            <Plus className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                        {outOfStock && (
+                          <div className="absolute bottom-2 left-2 right-2 flex justify-center">
+                            <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">Out of stock</span>
                           </div>
                         )}
                       </div>
-                      <div className="p-2">
-                        <p className="text-[11px] font-semibold text-gray-700 leading-tight line-clamp-2">{p.name}</p>
-                        {p.category && <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5 truncate">{p.category}</p>}
-                        <p className="text-xs font-bold text-[#1A56DB] mt-1">₹{Number(p.price).toLocaleString("en-IN")}</p>
-                      </div>
-                      {/* Cart qty badge / add button */}
-                      {cartItem ? (
-                        <div
-                          className="absolute bottom-2 right-2 flex items-center gap-1 bg-[#1A56DB] rounded-lg overflow-hidden"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            className="w-6 h-6 flex items-center justify-center text-white hover:bg-[#1447B4] text-sm font-bold"
-                            onClick={(e) => { e.stopPropagation(); setSelectedProducts((arr) => cartItem.quantity <= 1 ? arr.filter((x) => x.productId !== pid) : arr.map((x) => x.productId === pid ? { ...x, quantity: x.quantity - 1 } : x)); }}
-                          >−</button>
-                          <span className="text-[11px] font-bold text-white min-w-[14px] text-center">{cartItem.quantity}</span>
-                          <button
-                            className="w-6 h-6 flex items-center justify-center text-white hover:bg-[#1447B4] text-sm font-bold disabled:opacity-40"
-                            disabled={atMax}
-                            onClick={(e) => { e.stopPropagation(); if (!atMax) setSelectedProducts((arr) => arr.map((x) => x.productId === pid ? { ...x, quantity: x.quantity + 1 } : x)); }}
-                          >+</button>
-                        </div>
-                      ) : !outOfStock && (
-                        <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-[#1A56DB] flex items-center justify-center shadow-sm">
-                          <Plus className="w-3.5 h-3.5 text-white" />
-                        </div>
-                      )}
-                      {outOfStock && (
-                        <div className="absolute inset-0 flex items-end justify-center pb-2 rounded-xl">
-                          <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full">Out of stock</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ══ RIGHT: CART + CHECKOUT ══ */}
-        <div className="w-72 xl:w-80 flex-shrink-0 border-l border-gray-100 bg-white flex flex-col overflow-hidden">
-
-          {/* ── Customer ── */}
-          <div className="flex-shrink-0 border-b border-gray-100 px-3 py-2.5 bg-gray-50">
-            <div className="flex items-center gap-1.5 mb-2">
-              <div className="flex items-center gap-1 bg-white rounded-md border border-gray-200 p-0.5">
-                <button onClick={() => { setCustomerMode("existing"); setChosenCustomer(null); }} className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${customerMode === "existing" ? "bg-[#1A56DB] text-white" : "text-gray-500"}`}>Existing</button>
-                <button onClick={() => { setCustomerMode("new"); setChosenCustomer(null); }} className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${customerMode === "new" ? "bg-[#1A56DB] text-white" : "text-gray-500"}`}>New</button>
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            {customerMode === "existing" ? (
-              <Popover open={customerDropdownOpen} onOpenChange={setCustomerDropdownOpen}>
-                <PopoverTrigger asChild>
-                  <button type="button" className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-left hover:border-gray-300 transition-colors">
-                    {chosenCustomer ? (
-                      <>
-                        <div className="w-6 h-6 rounded-full bg-[#1A56DB] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">{chosenCustomer.name?.charAt(0).toUpperCase() || "?"}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-[#162B4D] truncate">{chosenCustomer.name}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{chosenCustomer.phone}</p>
-                        </div>
-                        <button onClick={(e) => { e.stopPropagation(); setChosenCustomer(null); setSelectedAddressIdx(null); }} className="text-gray-300 hover:text-red-400 flex-shrink-0"><X className="w-3 h-3" /></button>
-                      </>
-                    ) : (
-                      <>
-                        <User className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                        <span className="text-xs text-gray-400 flex-1">{loadingCustomers ? "Loading..." : "Search customer..."}</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      </>
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 shadow-xl border border-gray-100 rounded-xl overflow-hidden w-64" align="start" sideOffset={4}>
-                  <div className="p-2 border-b border-gray-100 bg-gray-50">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                      <Input autoFocus value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, phone or email..." className="pl-7 h-7 text-xs" />
-                    </div>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
-                    {filteredCustomers.length === 0 ? (
-                      <div className="p-3 text-center">
-                        <p className="text-xs text-gray-400">No match</p>
-                        <button onClick={() => { setCustomerMode("new"); setNewCustomer((n) => ({ ...n, name: customerSearch.trim() })); setCustomerDropdownOpen(false); }} className="text-xs text-[#1A56DB] font-semibold mt-1 hover:underline">+ New customer</button>
-                      </div>
-                    ) : filteredCustomers.map((c) => (
-                      <button key={c.id} onClick={() => { setChosenCustomer(c); const addrs = Array.isArray(c.addresses) ? c.addresses : []; const defaultIdx = addrs.findIndex((a: any) => getAddressFields(a)?.isDefault); setSelectedAddressIdx(addrs.length ? (defaultIdx >= 0 ? defaultIdx : 0) : null); setOrderAddressMode(addrs.length ? "saved" : "new"); setCustomerDropdownOpen(false); setCustomerSearch(""); if (!newAddress.name) setNewAddress((a) => ({ ...a, name: c.name || "", phone: c.phone || "" })); }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50 transition-colors text-left">
-                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 flex-shrink-0">{c.name?.charAt(0).toUpperCase() || "?"}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-[#162B4D] truncate">{c.name}</p>
-                          <p className="text-[10px] text-gray-400">{c.phone}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <div className="space-y-1.5">
-                <div className="flex gap-1.5">
-                  <Input value={newCustomer.name} onChange={(e) => setNewCustomer((n) => ({ ...n, name: e.target.value }))} placeholder="Full name *" className="h-7 text-xs flex-1" />
-                  <Input value={newCustomer.phone} onChange={(e) => setNewCustomer((n) => ({ ...n, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-7 text-xs w-28" inputMode="numeric" maxLength={10} />
-                </div>
-                <div className="flex gap-1.5">
-                  <Input value={newCustomer.email} onChange={(e) => setNewCustomer((n) => ({ ...n, email: e.target.value }))} placeholder="Email (optional)" className="h-7 text-xs flex-1" type="email" />
-                  <Input value={newCustomer.dateOfBirth} onChange={(e) => setNewCustomer((n) => ({ ...n, dateOfBirth: e.target.value }))} placeholder="DOB" className="h-7 text-xs w-28" type="date" title="Date of birth" />
-                </div>
-              </div>
-            )}
+          </div>
 
-            {/* Address (delivery only) */}
-            {orderDeliveryType === "delivery" && (
-              <div className="mt-2 space-y-1.5">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase">Delivery Address</p>
-                {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
-                  <div className="flex items-center gap-1 mb-1">
-                    <button onClick={() => setOrderAddressMode("saved")} className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-colors ${orderAddressMode === "saved" ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white"}`}>Saved</button>
-                    <button onClick={() => setOrderAddressMode("new")} className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-colors ${orderAddressMode === "new" ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white"}`}>New</button>
+          {/* ── RIGHT: ORDER PANEL ── */}
+          <div className="w-80 xl:w-96 flex-shrink-0 border-l border-gray-200 bg-white flex flex-col overflow-hidden">
+
+            {/* Scrollable sections: Customer + Address + Schedule */}
+            <div className="flex-shrink-0 overflow-y-auto border-b border-gray-200" style={{ maxHeight: "55%" }}>
+
+              {/* ─ CUSTOMER ─ */}
+              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" /> Customer
+                  </p>
+                  <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                    <button onClick={() => { setCustomerMode("existing"); setChosenCustomer(null); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${customerMode === "existing" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Existing</button>
+                    <button onClick={() => { setCustomerMode("new"); setChosenCustomer(null); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${customerMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
+                  </div>
+                </div>
+                {customerMode === "existing" ? (
+                  <Popover open={customerDropdownOpen} onOpenChange={setCustomerDropdownOpen}>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-left hover:border-[#1A56DB]/50 hover:bg-white transition-all">
+                        {chosenCustomer ? (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-[#162B4D] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{chosenCustomer.name?.charAt(0).toUpperCase() || "?"}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#162B4D] truncate">{chosenCustomer.name}</p>
+                              <p className="text-xs text-gray-400">{chosenCustomer.phone}</p>
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); setChosenCustomer(null); setSelectedAddressIdx(null); }} className="text-gray-300 hover:text-red-400 flex-shrink-0 p-0.5"><X className="w-3.5 h-3.5" /></button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-gray-400" />
+                            </div>
+                            <span className="text-sm text-gray-400 flex-1">{loadingCustomers ? "Loading customers..." : "Search customer..."}</span>
+                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          </>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 shadow-xl border border-gray-100 rounded-xl overflow-hidden w-72" align="start" sideOffset={4}>
+                      <div className="p-2 border-b border-gray-100 bg-gray-50">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input autoFocus value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, phone or email..." className="pl-8 h-8 text-sm" />
+                        </div>
+                      </div>
+                      <div className="max-h-52 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
+                        {filteredCustomers.length === 0 ? (
+                          <div className="p-4 text-center">
+                            <p className="text-sm text-gray-400">No customer found</p>
+                            <button onClick={() => { setCustomerMode("new"); setNewCustomer((n) => ({ ...n, name: customerSearch.trim() })); setCustomerDropdownOpen(false); }} className="text-sm text-[#1A56DB] font-semibold mt-1.5 hover:underline">+ Create new customer</button>
+                          </div>
+                        ) : filteredCustomers.map((c) => (
+                          <button key={c.id} onClick={() => { setChosenCustomer(c); const addrs = Array.isArray(c.addresses) ? c.addresses : []; const defaultIdx = addrs.findIndex((a: any) => getAddressFields(a)?.isDefault); setSelectedAddressIdx(addrs.length ? (defaultIdx >= 0 ? defaultIdx : 0) : null); setOrderAddressMode(addrs.length ? "saved" : "new"); setCustomerDropdownOpen(false); setCustomerSearch(""); if (!newAddress.name) setNewAddress((a) => ({ ...a, name: c.name || "", phone: c.phone || "" })); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-50 transition-colors text-left">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600 flex-shrink-0">{c.name?.charAt(0).toUpperCase() || "?"}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#162B4D] truncate">{c.name}</p>
+                              <p className="text-xs text-gray-400">{c.phone}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input value={newCustomer.name} onChange={(e) => setNewCustomer((n) => ({ ...n, name: e.target.value }))} placeholder="Full name *" className="h-8 text-sm flex-1" />
+                      <Input value={newCustomer.phone} onChange={(e) => setNewCustomer((n) => ({ ...n, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-8 text-sm w-28" inputMode="numeric" maxLength={10} />
+                    </div>
+                    <div className="flex gap-2">
+                      <Input value={newCustomer.email} onChange={(e) => setNewCustomer((n) => ({ ...n, email: e.target.value }))} placeholder="Email (optional)" className="h-8 text-sm flex-1" type="email" />
+                      <Input value={newCustomer.dateOfBirth} onChange={(e) => setNewCustomer((n) => ({ ...n, dateOfBirth: e.target.value }))} placeholder="Date of birth" className="h-8 text-sm w-32" type="date" title="Date of birth" />
+                    </div>
                   </div>
                 )}
-                {chosenCustomer && orderAddressMode === "saved" && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 ? (
-                  <div className="space-y-1 max-h-28 overflow-y-auto">
-                    {chosenCustomer.addresses.map((a: any, i: number) => {
-                      const f = getAddressFields(a);
-                      const lines = formatAddressLines(a);
-                      return (
-                        <button key={i} onClick={() => setSelectedAddressIdx(i)} className={`w-full text-left px-2 py-1.5 rounded-lg border text-[11px] transition-all ${selectedAddressIdx === i ? "border-[#1A56DB] bg-blue-50 text-[#162B4D]" : "border-gray-100 bg-white text-gray-600 hover:border-gray-200"}`}>
-                          <span className="font-semibold">{f?.label || `Address ${i + 1}`}</span>
-                          <span className="block text-[10px] text-gray-400 truncate">{lines.slice(0, 2).join(", ")}</span>
-                        </button>
-                      );
-                    })}
+              </div>
+
+              {/* ─ DELIVERY ADDRESS ─ */}
+              {orderDeliveryType === "delivery" && (
+                <div className="px-4 pt-3 pb-3 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" /> Delivery Address
+                    </p>
+                    {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
+                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                        <button onClick={() => setOrderAddressMode("saved")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "saved" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Saved</button>
+                        <button onClick={() => setOrderAddressMode("new")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-1">
-                    {/* Address label */}
-                    <div className="col-span-2 flex gap-1">
-                      {["Home", "Work", "Other"].map((lbl) => (
-                        <button key={lbl} type="button" onClick={() => setNewAddress((a) => ({ ...a, label: lbl }))} className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors ${newAddress.label === lbl ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>{lbl}</button>
+                  {chosenCustomer && orderAddressMode === "saved" && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 ? (
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {chosenCustomer.addresses.map((a: any, i: number) => {
+                        const f = getAddressFields(a);
+                        const lines = formatAddressLines(a);
+                        return (
+                          <button key={i} onClick={() => setSelectedAddressIdx(i)} className={`w-full text-left px-3 py-2 rounded-lg border transition-all ${selectedAddressIdx === i ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                            <p className="text-xs font-bold text-[#162B4D]">{f?.label || `Address ${i + 1}`}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 truncate">{lines.slice(0, 2).join(", ")}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5">
+                        {["Home", "Work", "Other"].map((lbl) => (
+                          <button key={lbl} type="button" onClick={() => setNewAddress((a) => ({ ...a, label: lbl }))} className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${newAddress.label === lbl ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>{lbl}</button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input value={newAddress.name} onChange={(e) => setNewAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name *" className="h-8 text-sm col-span-2" />
+                        <Input value={newAddress.phone} onChange={(e) => setNewAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-8 text-sm col-span-2" inputMode="numeric" />
+                        <Input value={newAddress.building} onChange={(e) => setNewAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat *" className="h-8 text-sm col-span-2" />
+                        <Input value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2" />
+                        <Input value={newAddress.area} onChange={(e) => setNewAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-8 text-sm" />
+                        <Input value={newAddress.pincode} onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-8 text-sm" inputMode="numeric" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─ DELIVERY SCHEDULE ─ */}
+              {orderDeliveryType === "delivery" && (
+                <div className="px-4 pt-3 pb-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" /> Schedule
+                    </p>
+                    <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                      <button onClick={() => setOrderScheduleType("instant")} className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "instant" ? "bg-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                        <Zap className="w-3 h-3" /> Instant
+                      </button>
+                      <button onClick={() => setOrderScheduleType("slot")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "slot" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                        By Slot
+                      </button>
+                    </div>
+                  </div>
+                  <Input
+                    type="date"
+                    value={orderDate}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => { setOrderDate(e.target.value); setSelectedTimeslotId(""); }}
+                    className="h-8 text-sm w-full mb-2"
+                  />
+                  {orderScheduleType === "slot" && (
+                    <>
+                      {loadingTimeslots ? (
+                        <p className="text-xs text-gray-400 py-1">Loading slots...</p>
+                      ) : activeTimeslots.length === 0 ? (
+                        <p className="text-xs text-amber-600 flex items-center gap-1 py-1"><Zap className="w-3.5 h-3.5" />No time slots configured — order will be instant</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto">
+                          {activeTimeslots.map((t) => {
+                            const id = String(t._id);
+                            const isSelected = selectedTimeslotId === id;
+                            const extra = Number(t.extraCharge) || 0;
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => setSelectedTimeslotId(id)}
+                                className={`flex items-start gap-2 p-2 rounded-lg border transition-all text-left ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                              >
+                                <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-400"}`}>
+                                  {t.isInstant ? <Zap className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-[#162B4D] truncate leading-tight">{t.label}</p>
+                                  <p className="text-[11px] text-gray-400 mt-0.5">{t.startTime}–{t.endTime}</p>
+                                  {extra > 0 && <p className="text-[11px] font-semibold text-[#1A56DB]">+₹{extra}</p>}
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-[#1A56DB] flex-shrink-0 mt-0.5" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {orderScheduleType === "instant" && (
+                    <p className="text-xs text-amber-700 flex items-center gap-1.5 py-1"><Zap className="w-3.5 h-3.5" />Will be dispatched as soon as possible</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ─ CART ITEMS (scrollable) ─ */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {selectedProducts.length === 0 && orderItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                    <ShoppingBag className="w-6 h-6 text-gray-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-400">Cart is empty</p>
+                  <p className="text-xs text-gray-300 mt-1">Tap a product to add it</p>
+                </div>
+              ) : (
+                <div className="px-4 py-3 space-y-2">
+                  {selectedProducts.map((p) => {
+                    const stock = stockOf(p.productId);
+                    const atMax = p.quantity >= stock;
+                    return (
+                      <div key={p.productId} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#162B4D] leading-tight truncate">{p.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">₹{Number(p.price).toLocaleString("en-IN")}{p.unit ? ` / ${p.unit}` : ""}</p>
+                        </div>
+                        <div className="flex items-center bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          <button onClick={() => setSelectedProducts((arr) => p.quantity <= 1 ? arr.filter((x) => x.productId !== p.productId) : arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity - 1 } : x))} className="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 font-bold text-base">−</button>
+                          <span className="text-sm font-bold text-gray-700 min-w-[20px] text-center">{p.quantity}</span>
+                          <button disabled={atMax} onClick={() => { if (!atMax) setSelectedProducts((arr) => arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity + 1 } : x)); }} className="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 font-bold text-base disabled:opacity-30">+</button>
+                        </div>
+                        <span className="text-sm font-bold text-[#162B4D] w-16 text-right flex-shrink-0">₹{(p.price * p.quantity).toLocaleString("en-IN")}</span>
+                      </div>
+                    );
+                  })}
+                  {orderItems.map((it, idx) => (
+                    <div key={idx} className="flex items-start gap-2 py-2 border-b border-gray-100">
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <Input value={it.name} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} placeholder="Item name" className="h-7 text-sm bg-gray-50 border-gray-200" />
+                        <div className="flex gap-1.5">
+                          <Input value={it.price} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} placeholder="₹ Price" type="number" className="h-7 text-sm flex-1 bg-gray-50 border-gray-200" />
+                          <Input value={it.quantity} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} placeholder="Qty" type="number" className="h-7 text-sm w-14 bg-gray-50 border-gray-200" />
+                          <Input value={it.unit} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, unit: e.target.value } : x))} placeholder="Unit" className="h-7 text-sm w-14 bg-gray-50 border-gray-200" />
+                        </div>
+                      </div>
+                      <button onClick={() => setOrderItems((arr) => arr.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400 mt-1 flex-shrink-0"><X className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => setOrderItems((arr) => [...arr, { name: "", price: "", quantity: "1", unit: "" }])} className="w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#1A56DB] border border-dashed border-[#1A56DB]/40 rounded-lg hover:bg-blue-50 transition-colors">
+                    <Plus className="w-3.5 h-3.5" /> Add Custom Item
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ─ TOTALS + COUPONS + PAYMENT + CHECKOUT (fixed bottom) ─ */}
+            <div className="flex-shrink-0 border-t-2 border-gray-100 bg-white px-4 py-3 space-y-3">
+
+              {/* Coupon */}
+              {totalItemCount > 0 && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <Input value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }} placeholder="Enter coupon code" className="pl-8 h-8 text-sm" />
+                    </div>
+                    <Button type="button" variant="outline" onClick={applyCouponByCode} disabled={!couponCode.trim()} className="h-8 text-sm px-3">Apply</Button>
+                  </div>
+                  {couponError && <p className="text-xs text-red-500">{couponError}</p>}
+                  {loadingCoupons ? (
+                    <p className="text-xs text-gray-400">Loading offers...</p>
+                  ) : activeCoupons.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Available Offers</p>
+                      <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
+                        {activeCoupons.map((c) => {
+                          const cid = String(c._id);
+                          const isApplied = appliedCouponIds.includes(cid);
+                          const applicable = isCouponApplicable(c);
+                          const min = Number(c.minOrderAmount) || 0;
+                          const meetsMin = itemsSubtotal >= min;
+                          const canApply = applicable && meetsMin;
+                          const discountLabel = c.type === "percentage" ? `${Number(c.discountValue)}% OFF` : `₹${Number(c.discountValue)} OFF`;
+                          return (
+                            <button key={cid} type="button" onClick={() => toggleCoupon(cid)} disabled={!canApply && !isApplied}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${isApplied ? "border-emerald-300 bg-emerald-50" : canApply ? "border-gray-200 bg-gray-50 hover:border-emerald-200 hover:bg-emerald-50/40" : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"}`}
+                            >
+                              <span className={`flex-shrink-0 px-2 py-0.5 rounded text-xs font-bold ${isApplied ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-600"}`}>{c.code}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-[#162B4D]">{discountLabel}</p>
+                                {min > 0 && <p className="text-[11px] text-gray-400">Min ₹{min.toLocaleString("en-IN")}</p>}
+                              </div>
+                              {isApplied ? <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : (!meetsMin && min > 0 ? <span className="text-[10px] text-gray-400 flex-shrink-0">₹{(min - itemsSubtotal).toLocaleString("en-IN")} more</span> : null)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {appliedCoupons.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {appliedCoupons.map((c) => (
+                        <span key={String(c._id)} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <Ticket className="w-3 h-3" />{c.code}
+                          <button onClick={() => setAppliedCouponIds((ids) => ids.filter((id) => id !== String(c._id)))} className="hover:text-red-500 ml-0.5"><X className="w-3 h-3" /></button>
+                        </span>
                       ))}
                     </div>
-                    <Input value={newAddress.name} onChange={(e) => setNewAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name *" className="h-7 text-xs col-span-2" />
-                    <Input value={newAddress.phone} onChange={(e) => setNewAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone *" className="h-7 text-xs col-span-2" inputMode="numeric" />
-                    <Input value={newAddress.building} onChange={(e) => setNewAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building/Flat *" className="h-7 text-xs col-span-2" />
-                    <Input value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-7 text-xs col-span-2" />
-                    <Input value={newAddress.area} onChange={(e) => setNewAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-7 text-xs" />
-                    <Input value={newAddress.pincode} onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-7 text-xs" inputMode="numeric" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── Scheduling (delivery only) ── */}
-          {orderDeliveryType === "delivery" && (
-            <div className="flex-shrink-0 border-b border-gray-100 px-3 py-2.5 bg-gray-50 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Delivery Schedule</p>
-                <div className="flex items-center gap-1 bg-white rounded-md border border-gray-200 p-0.5">
-                  <button onClick={() => setOrderScheduleType("instant")} className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${orderScheduleType === "instant" ? "bg-amber-500 text-white" : "text-gray-500"}`}>
-                    Instant
-                  </button>
-                  <button onClick={() => setOrderScheduleType("slot")} className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${orderScheduleType === "slot" ? "bg-[#1A56DB] text-white" : "text-gray-500"}`}>
-                    By Slot
-                  </button>
-                </div>
-              </div>
-              {/* Delivery date */}
-              <div className="flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                <Input
-                  type="date"
-                  value={orderDate}
-                  min={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => { setOrderDate(e.target.value); setSelectedTimeslotId(""); }}
-                  className="h-7 text-xs flex-1"
-                />
-              </div>
-              {/* Timeslots (only when "slot" mode) */}
-              {orderScheduleType === "slot" && (
-                <div>
-                  {loadingTimeslots ? (
-                    <p className="text-[11px] text-gray-400">Loading slots...</p>
-                  ) : activeTimeslots.length === 0 ? (
-                    <p className="text-[11px] text-amber-600 flex items-center gap-1"><Zap className="w-3 h-3" />No slots — switching to instant</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-1 max-h-28 overflow-y-auto">
-                      {activeTimeslots.map((t) => {
-                        const id = String(t._id);
-                        const isSelected = selectedTimeslotId === id;
-                        const extra = Number(t.extraCharge) || 0;
-                        return (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => setSelectedTimeslotId(id)}
-                            className={`flex items-start gap-1.5 p-1.5 rounded-lg border text-left transition-all ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
-                          >
-                            <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-400"}`}>
-                              {t.isInstant ? <Zap className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-bold text-[#162B4D] truncate leading-tight">{t.label}</p>
-                              <p className="text-[10px] text-gray-400">{t.startTime}–{t.endTime}{extra > 0 ? ` +₹${extra}` : ""}</p>
-                            </div>
-                            {isSelected && <Check className="w-3 h-3 text-[#1A56DB] flex-shrink-0 mt-0.5" />}
-                          </button>
-                        );
-                      })}
-                    </div>
                   )}
                 </div>
               )}
-              {orderScheduleType === "instant" && (
-                <p className="text-[11px] text-amber-700 flex items-center gap-1"><Zap className="w-3 h-3" />Dispatched as soon as possible</p>
-              )}
-            </div>
-          )}
 
-          {/* ── Cart items ── */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            {selectedProducts.length === 0 && orderItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-2">
-                  <ShoppingBag className="w-5 h-5 text-gray-300" />
+              {/* Totals */}
+              <div className="bg-gray-50 rounded-xl px-3 py-2.5 space-y-1.5">
+                <div className="flex justify-between text-sm text-gray-500">
+                  <span>Subtotal</span>
+                  <span className="font-medium">₹{itemsSubtotal.toLocaleString("en-IN")}</span>
                 </div>
-                <p className="text-xs font-semibold text-gray-400">No items in cart</p>
-                <p className="text-[11px] text-gray-300 mt-0.5">Add items from the menu</p>
-              </div>
-            ) : (
-              <div className="px-3 py-2 space-y-1.5">
-                {selectedProducts.map((p) => {
-                  const stock = stockOf(p.productId);
-                  const atMax = p.quantity >= stock;
-                  return (
-                    <div key={p.productId} className="flex items-center gap-2 py-1.5 border-b border-gray-50">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-[#162B4D] leading-tight truncate">{p.name}</p>
-                        <p className="text-[11px] text-gray-400">₹{Number(p.price).toLocaleString("en-IN")}{p.unit ? `/${p.unit}` : ""}</p>
-                      </div>
-                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <button onClick={() => setSelectedProducts((arr) => p.quantity <= 1 ? arr.filter((x) => x.productId !== p.productId) : arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity - 1 } : x))} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-200 text-sm font-bold">−</button>
-                        <span className="text-xs font-bold text-gray-700 min-w-[16px] text-center">{p.quantity}</span>
-                        <button disabled={atMax} onClick={() => { if (!atMax) setSelectedProducts((arr) => arr.map((x) => x.productId === p.productId ? { ...x, quantity: x.quantity + 1 } : x)); }} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-200 text-sm font-bold disabled:opacity-30">+</button>
-                      </div>
-                      <span className="text-xs font-bold text-[#162B4D] w-14 text-right flex-shrink-0">₹{(p.price * p.quantity).toLocaleString("en-IN")}</span>
-                    </div>
-                  );
-                })}
-                {orderItems.map((it, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 py-1.5 border-b border-gray-50">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <Input value={it.name} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} placeholder="Item name" className="h-6 text-xs border-0 bg-gray-50 px-1.5 rounded" />
-                      <div className="flex gap-1">
-                        <Input value={it.price} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} placeholder="₹" type="number" className="h-6 text-xs w-14 border-0 bg-gray-50 px-1.5 rounded" />
-                        <Input value={it.quantity} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} placeholder="Qty" type="number" className="h-6 text-xs w-10 border-0 bg-gray-50 px-1.5 rounded" />
-                        <Input value={it.unit} onChange={(e) => setOrderItems((arr) => arr.map((x, i) => i === idx ? { ...x, unit: e.target.value } : x))} placeholder="Unit" className="h-6 text-xs flex-1 border-0 bg-gray-50 px-1.5 rounded" />
-                      </div>
-                    </div>
-                    <button onClick={() => setOrderItems((arr) => arr.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
-                  </div>
-                ))}
-                <button onClick={() => setOrderItems((arr) => [...arr, { name: "", price: "", quantity: "1", unit: "" }])} className="w-full py-1.5 flex items-center justify-center gap-1 text-[11px] font-semibold text-[#1A56DB] border border-dashed border-[#1A56DB]/30 rounded-lg hover:bg-blue-50 transition-colors mt-1">
-                  <Plus className="w-3 h-3" /> Custom Item
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── Totals + Payment + Checkout ── */}
-          <div className="flex-shrink-0 border-t border-gray-100 bg-white px-3 py-2.5 space-y-2">
-            {/* Coupon section */}
-            {totalItemCount > 0 && (
-              <div className="space-y-1.5">
-                {/* Manual code entry */}
-                <div className="flex gap-1.5">
-                  <div className="relative flex-1">
-                    <Tag className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                    <Input value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }} placeholder="Enter coupon code" className="pl-6 h-7 text-xs" />
-                  </div>
-                  <Button type="button" variant="outline" onClick={applyCouponByCode} disabled={!couponCode.trim()} className="h-7 text-xs px-3">Apply</Button>
-                </div>
-                {couponError && <p className="text-[10px] text-red-500">{couponError}</p>}
-                {/* Available coupons from sub-hub */}
-                {loadingCoupons ? (
-                  <p className="text-[10px] text-gray-400">Loading offers...</p>
-                ) : activeCoupons.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Available Offers</p>
-                    <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
-                      {activeCoupons.map((c) => {
-                        const cid = String(c._id);
-                        const isApplied = appliedCouponIds.includes(cid);
-                        const applicable = isCouponApplicable(c);
-                        const min = Number(c.minOrderAmount) || 0;
-                        const meetsMin = itemsSubtotal >= min;
-                        const canApply = applicable && meetsMin;
-                        const discountLabel = c.type === "percentage"
-                          ? `${Number(c.discountValue)}% OFF`
-                          : `₹${Number(c.discountValue)} OFF`;
-                        return (
-                          <button
-                            key={cid}
-                            type="button"
-                            onClick={() => toggleCoupon(cid)}
-                            disabled={!canApply && !isApplied}
-                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-all ${
-                              isApplied
-                                ? "border-emerald-300 bg-emerald-50"
-                                : canApply
-                                  ? "border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/50"
-                                  : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
-                            }`}
-                          >
-                            <div className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold ${isApplied ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}>
-                              {c.code}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-semibold text-[#162B4D] truncate">{discountLabel}</p>
-                              {min > 0 && <p className="text-[10px] text-gray-400">Min ₹{min.toLocaleString("en-IN")}</p>}
-                            </div>
-                            {isApplied
-                              ? <Check className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                              : !meetsMin && min > 0
-                                ? <span className="text-[9px] text-gray-400 flex-shrink-0">Add ₹{(min - itemsSubtotal).toLocaleString("en-IN")} more</span>
-                                : null
-                            }
-                          </button>
-                        );
-                      })}
-                    </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span className="flex items-center gap-1"><Ticket className="w-3.5 h-3.5" />Coupon discount</span>
+                    <span className="font-semibold">−₹{couponDiscount.toLocaleString("en-IN")}</span>
                   </div>
                 )}
-                {/* Applied coupons badges */}
-                {appliedCoupons.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {appliedCoupons.map((c) => (
-                      <span key={String(c._id)} className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                        <Ticket className="w-2.5 h-2.5" />{c.code}
-                        <button onClick={() => setAppliedCouponIds((ids) => ids.filter((id) => id !== String(c._id)))} className="hover:text-red-500"><X className="w-2.5 h-2.5" /></button>
-                      </span>
-                    ))}
+                {slotExtraCharge > 0 && (
+                  <div className="flex justify-between text-sm text-[#1A56DB]">
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Slot charge</span>
+                    <span className="font-semibold">+₹{slotExtraCharge.toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
+                  <span className="text-base font-bold text-[#162B4D]">Total</span>
+                  <span className="text-xl font-extrabold text-[#162B4D]">₹{newOrderTotal.toLocaleString("en-IN")}</span>
+                </div>
+                {paymentStatus !== "unpaid" && paidTotal > 0 && (
+                  <div className="flex justify-between text-sm text-amber-600">
+                    <span>Amount due</span>
+                    <span className="font-bold">₹{dueAmount.toLocaleString("en-IN")}</span>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Totals */}
-            <div className="space-y-1 py-1 border-t border-gray-100">
-              <div className="flex justify-between text-[11px] text-gray-500">
-                <span>Subtotal</span>
-                <span>₹{itemsSubtotal.toLocaleString("en-IN")}</span>
-              </div>
-              {couponDiscount > 0 && (
-                <div className="flex justify-between text-[11px] text-emerald-600">
-                  <span className="flex items-center gap-0.5"><Ticket className="w-2.5 h-2.5" />Discount</span>
-                  <span>−₹{couponDiscount.toLocaleString("en-IN")}</span>
+              {/* Payment method */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest">Payment Method</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { mode: "cash", label: "Cash", Icon: Banknote, activeClass: "border-emerald-400 bg-emerald-500 text-white", hoverClass: "border-gray-200 text-gray-600 hover:bg-emerald-50 hover:border-emerald-300" },
+                    { mode: "upi", label: "UPI", Icon: Smartphone, activeClass: "border-[#1A56DB] bg-[#1A56DB] text-white", hoverClass: "border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-300" },
+                    { mode: "card", label: "Card", Icon: CreditCard, activeClass: "border-purple-400 bg-purple-500 text-white", hoverClass: "border-gray-200 text-gray-600 hover:bg-purple-50 hover:border-purple-300" },
+                  ].map(({ mode, label, Icon, activeClass, hoverClass }) => {
+                    const isActive = paymentStatus === "paid" && paymentEntries[0]?.mode === mode && paymentEntries.length === 1;
+                    return (
+                      <button key={mode} type="button"
+                        onClick={() => { setPaymentStatus("paid"); setPaymentEntries([{ mode, amount: String(newOrderTotal || 0), reference: "" }]); }}
+                        className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${isActive ? activeClass : hoverClass}`}
+                      >
+                        <Icon className="w-5 h-5" />{label}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-              {slotExtraCharge > 0 && (
-                <div className="flex justify-between text-[11px] text-blue-600">
-                  <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />Slot charge</span>
-                  <span>+₹{slotExtraCharge.toLocaleString("en-IN")}</span>
+                {paymentStatus === "paid" && (paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
+                  <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Transaction / Reference ID" className="h-8 text-sm" />
+                )}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setPaymentStatus("unpaid"); setPaymentEntries([]); }}
+                    className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${paymentStatus === "unpaid" ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
+                  >Unpaid / COD</button>
+                  <button type="button" onClick={() => { setPaymentStatus("partial"); if (paymentEntries.length === 0) setPaymentEntries([{ mode: "cash", amount: "", reference: "" }]); }}
+                    className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${paymentStatus === "partial" ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
+                  >Partial Pay</button>
                 </div>
-              )}
-              <div className="flex justify-between items-center pt-1">
-                <span className="text-sm font-bold text-gray-700">Total</span>
-                <span className="text-lg font-extrabold text-[#162B4D]">₹{newOrderTotal.toLocaleString("en-IN")}</span>
-              </div>
-              {paymentStatus !== "unpaid" && paidTotal > 0 && (
-                <div className="flex justify-between text-[11px] text-amber-600">
-                  <span>Due</span>
-                  <span className="font-semibold">₹{dueAmount.toLocaleString("en-IN")}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Payment Method */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Payment Method</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { mode: "cash", label: "Cash", Icon: Banknote, color: "emerald" },
-                  { mode: "upi", label: "UPI", Icon: Smartphone, color: "blue" },
-                  { mode: "card", label: "Card", Icon: CreditCard, color: "purple" },
-                ].map(({ mode, label, Icon, color }) => {
-                  const isActive = paymentStatus === "paid" && paymentEntries[0]?.mode === mode && paymentEntries.length === 1;
-                  const colorMap: Record<string, string> = {
-                    emerald: isActive ? "border-emerald-400 bg-emerald-500 text-white" : "border-gray-200 text-gray-600 hover:bg-emerald-50 hover:border-emerald-300",
-                    blue: isActive ? "border-blue-400 bg-blue-500 text-white" : "border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-300",
-                    purple: isActive ? "border-purple-400 bg-purple-500 text-white" : "border-gray-200 text-gray-600 hover:bg-purple-50 hover:border-purple-300",
-                  };
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setPaymentStatus("paid");
-                        setPaymentEntries([{ mode, amount: String(newOrderTotal || 0), reference: "" }]);
-                      }}
-                      className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${colorMap[color]}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Reference for paid UPI/card */}
-              {paymentStatus === "paid" && (paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
-                <Input
-                  value={paymentEntries[0]?.reference ?? ""}
-                  onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))}
-                  placeholder="Transaction / Reference ID"
-                  className="h-7 text-xs mt-1.5"
-                />
-              )}
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <button
-                  type="button"
-                  onClick={() => { setPaymentStatus("unpaid"); setPaymentEntries([]); }}
-                  className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all ${paymentStatus === "unpaid" ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
-                >
-                  Unpaid / COD
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setPaymentStatus("partial"); if (paymentEntries.length === 0) setPaymentEntries([{ mode: "cash", amount: "", reference: "" }]); }}
-                  className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all ${paymentStatus === "partial" ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
-                >
-                  Partial
-                </button>
-              </div>
-              {paymentStatus === "partial" && (
-                <div className="mt-1.5 space-y-1.5">
-                  <div className="flex gap-1.5">
-                    <div className="relative flex-1">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">₹</span>
-                      <Input type="number" inputMode="decimal" value={paymentEntries[0]?.amount ?? ""} onChange={(e) => setPaymentEntries((arr) => [{ ...arr[0] ?? { mode: "cash", reference: "" }, amount: e.target.value }])} placeholder="Paid amount" className="pl-5 h-7 text-xs" />
+                {paymentStatus === "partial" && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
+                        <Input type="number" inputMode="decimal" value={paymentEntries[0]?.amount ?? ""} onChange={(e) => setPaymentEntries((arr) => [{ ...arr[0] ?? { mode: "cash", reference: "" }, amount: e.target.value }])} placeholder="Paid amount" className="pl-7 h-8 text-sm" />
+                      </div>
+                      <select value={paymentEntries[0]?.mode || "cash"} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, mode: e.target.value } : p))} className="h-8 px-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/30">
+                        {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      </select>
                     </div>
-                    <select value={paymentEntries[0]?.mode || "cash"} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, mode: e.target.value } : p))} className="h-7 px-2 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-[#1A56DB]/30">
-                      {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                    </select>
+                    {(paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
+                      <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Reference / Transaction ID" className="h-8 text-sm" />
+                    )}
                   </div>
-                  {(paymentEntries[0]?.mode === "upi" || paymentEntries[0]?.mode === "card" || paymentEntries[0]?.mode === "bank_transfer") && (
-                    <Input value={paymentEntries[0]?.reference ?? ""} onChange={(e) => setPaymentEntries((arr) => arr.map((p, i) => i === 0 ? { ...p, reference: e.target.value } : p))} placeholder="Reference / Transaction ID" className="h-7 text-xs" />
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Notes */}
-            <div>
-              <Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Order notes (optional)..." className="text-xs min-h-[40px] resize-none" rows={2} />
-            </div>
+              {/* Notes */}
+              <Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Order notes (optional)..." className="text-sm min-h-[36px] resize-none bg-gray-50 border-gray-200" rows={2} />
 
-            {/* Checkout button */}
-            <Button
-              onClick={handleCreateOrder}
-              disabled={creatingSaving || totalItemCount === 0}
-              className="w-full h-10 bg-[#1A56DB] hover:bg-[#1447B4] text-white font-bold text-sm rounded-xl gap-2 disabled:opacity-60"
-            >
-              {creatingSaving
-                ? (editingOrderId ? "Saving..." : "Creating...")
-                : editingOrderId
-                  ? <><Pencil className="w-4 h-4" />Save Changes</>
-                  : <><Zap className="w-4 h-4" />{paymentStatus === "paid" ? `Checkout · ₹${newOrderTotal.toLocaleString("en-IN")}` : paymentStatus === "partial" ? `Save Order (Partial)` : `Save Order (Unpaid)`}</>
-              }
-            </Button>
+              {/* Checkout CTA */}
+              <Button
+                onClick={handleCreateOrder}
+                disabled={creatingSaving || totalItemCount === 0}
+                className="w-full h-12 bg-[#F05B4E] hover:bg-[#d94a3e] text-white font-bold text-base rounded-xl gap-2 disabled:opacity-50 shadow-md shadow-red-100"
+              >
+                {creatingSaving
+                  ? (editingOrderId ? "Saving order..." : "Creating order...")
+                  : editingOrderId
+                    ? <><Pencil className="w-4 h-4" />Save Changes</>
+                    : paymentStatus === "paid"
+                      ? <><Zap className="w-5 h-5" />Checkout · ₹{newOrderTotal.toLocaleString("en-IN")}</>
+                      : paymentStatus === "partial"
+                        ? <><Wallet className="w-5 h-5" />Save Order (Partial)</>
+                        : <><ShoppingBag className="w-5 h-5" />Place Order (Unpaid)</>
+                }
+              </Button>
+            </div>
           </div>
-        </div>
-        </div>{/* end flex main body */}
-      </div>
+
+        </div>{/* end 3-col body */}
+      </div>,
+      document.body
       )}
 
 
