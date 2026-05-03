@@ -2440,7 +2440,7 @@ export default function Orders() {
                 }`}
               >
                 <span className="truncate flex-1">All Items</span>
-                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${!pickerCategory ? "bg-white/25 text-white" : "bg-white/15 text-white/70"}`}>{subHubProducts.length}</span>
+                <span className={`text-[11px] font-bold min-w-[20px] h-5 px-1.5 rounded-full flex-shrink-0 flex items-center justify-center ${!pickerCategory ? "bg-[#162B4D] text-white" : "bg-[#F05B4E] text-white"}`}>{subHubProducts.length}</span>
               </button>
               {loadingProducts ? (
                 <div className="px-4 py-6 text-xs text-white/40 text-center">Loading...</div>
@@ -2453,7 +2453,7 @@ export default function Orders() {
                   }`}
                 >
                   <span className="truncate flex-1 capitalize">{cat.name}</span>
-                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${pickerCategory === cat.name ? "bg-white/25 text-white" : "bg-white/15 text-white/70"}`}>{cat.count}</span>
+                  <span className={`text-[11px] font-bold min-w-[20px] h-5 px-1.5 rounded-full flex-shrink-0 flex items-center justify-center ${pickerCategory === cat.name ? "bg-[#162B4D] text-white" : "bg-[#F05B4E] text-white"}`}>{cat.count}</span>
                 </button>
               ))}
               {!loadingProducts && productCategories.length === 0 && selectedSubHubId && (
