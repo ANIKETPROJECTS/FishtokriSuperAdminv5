@@ -2386,7 +2386,7 @@ export default function Orders() {
           {/* Hub selectors */}
           <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
             <Select value={selectedSuperHubId} onValueChange={(v) => { if (!loadingSuperHubs) setSelectedSuperHubId(v); }}>
-              <SelectTrigger className={`h-8 text-xs rounded-full px-3 w-auto max-w-[140px] border-none shadow-none text-white [&>svg]:text-white transition-colors font-semibold ${selectedSuperHubId ? "bg-[#F05B4E] hover:bg-[#e04a3d]" : "bg-white/20 hover:bg-white/30"}`}>
+              <SelectTrigger className={`h-8 text-xs rounded-full px-3 w-auto max-w-[140px] border-none shadow-none text-white [&>svg]:text-white [&_span]:!text-white transition-colors font-semibold ${selectedSuperHubId ? "bg-[#F05B4E] hover:bg-[#e04a3d]" : "bg-white/20 hover:bg-white/30"}`}>
                 <SelectValue placeholder={loadingSuperHubs ? "Loading..." : "Super Hub"} />
               </SelectTrigger>
               <SelectContent>
@@ -2397,7 +2397,7 @@ export default function Orders() {
             </Select>
             <ChevronRight className="w-3.5 h-3.5 text-white flex-shrink-0" />
             <Select value={selectedSubHubId} onValueChange={(v) => { if (selectedSuperHubId && !loadingSubHubs) setSelectedSubHubId(v); }}>
-              <SelectTrigger className={`h-8 text-xs rounded-full px-3 w-auto max-w-[140px] border-none shadow-none text-white [&>svg]:text-white transition-colors font-semibold ${selectedSubHubId ? "bg-[#F05B4E] hover:bg-[#e04a3d]" : "bg-white/20 hover:bg-white/30"}`}>
+              <SelectTrigger className={`h-8 text-xs rounded-full px-3 w-auto max-w-[140px] border-none shadow-none text-white [&>svg]:text-white [&_span]:!text-white transition-colors font-semibold ${selectedSubHubId ? "bg-[#F05B4E] hover:bg-[#e04a3d]" : "bg-white/20 hover:bg-white/30"}`}>
                 <SelectValue placeholder={!selectedSuperHubId ? "Sub Hub" : loadingSubHubs ? "Loading..." : "Sub Hub"} />
               </SelectTrigger>
               <SelectContent>
@@ -2585,7 +2585,7 @@ export default function Orders() {
 
               {/* Customer — phone-search UX */}
               <div className="px-4 pt-3 pb-3 border-b border-gray-100">
-                <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest mb-2">Customer</p>
+                <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5 mb-2"><img src="/icon-customer.png" className="w-4 h-4 object-contain" alt="" />Customer</p>
 
                 {/* ── State A: customer already selected ── */}
                 {chosenCustomer ? (
@@ -2620,13 +2620,14 @@ export default function Orders() {
                         <Input
                           value={customerSearch}
                           onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomerSearch(val);
-                            const nums = val.replace(/\D/g, "").slice(0, 10);
-                            if (/^\d+$/.test(val)) {
-                              setNewCustomer((n) => ({ ...n, phone: nums }));
-                              setNewAddress((a) => ({ ...a, phone: nums }));
+                            let val = e.target.value;
+                            const isAllDigits = /^\d*$/.test(val);
+                            if (isAllDigits) {
+                              val = val.slice(0, 10);
+                              setNewCustomer((n) => ({ ...n, phone: val }));
+                              setNewAddress((a) => ({ ...a, phone: val }));
                             }
+                            setCustomerSearch(val);
                           }}
                           placeholder="Search by name or phone…"
                           className="pl-6 h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -2673,7 +2674,7 @@ export default function Orders() {
               {orderDeliveryType === "delivery" && (
                 <div className="px-4 pt-3 pb-3 border-b border-gray-100">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />Address</p>
+                    <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5"><img src="/icon-address.png" className="w-4 h-4 object-contain" alt="" />Address</p>
                     {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
                       <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
                         <button onClick={() => setOrderAddressMode("saved")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "saved" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Saved</button>
@@ -2718,7 +2719,7 @@ export default function Orders() {
               {orderDeliveryType === "delivery" && (
                 <div className="px-4 pt-3 pb-3">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />Schedule</p>
+                    <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5"><img src="/icon-schedule.png" className="w-4 h-4 object-contain" alt="" />Schedule</p>
                     <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
                       <button onClick={() => setOrderScheduleType("instant")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "instant" ? "bg-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Instant</button>
                       <button onClick={() => setOrderScheduleType("slot")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderScheduleType === "slot" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>By Slot</button>
@@ -2756,7 +2757,7 @@ export default function Orders() {
             {/* ── Right half: Punched Orders / Cart ── */}
             <div className="flex-1 flex flex-col overflow-hidden bg-white">
               <div className="px-3 pt-3 pb-2 border-b border-gray-100 flex-shrink-0 flex items-center justify-between">
-                <p className="text-xs font-bold text-[#162B4D] uppercase tracking-widest">Order</p>
+                <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5"><img src="/icon-order.png" className="w-4 h-4 object-contain" alt="" />Order</p>
                 {selectedProducts.length > 0 && (
                   <span className="text-[11px] font-bold text-[#F05B4E]">{totalItemCount} item{totalItemCount !== 1 ? "s" : ""}</span>
                 )}
@@ -2796,7 +2797,7 @@ export default function Orders() {
 
               {/* ── Coupon section ── */}
               <div className="flex-shrink-0 border-t border-gray-100 px-3 py-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Coupon</p>
+                <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5 mb-1.5"><img src="/icon-coupon.png" className="w-4 h-4 object-contain" alt="" />Coupon</p>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
@@ -2835,7 +2836,7 @@ export default function Orders() {
 
               {/* ── Payment ── */}
               <div className="flex-shrink-0 border-t border-gray-100 px-3 py-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Payment</p>
+                <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5 mb-1.5"><img src="/icon-payment.png" className="w-4 h-4 object-contain" alt="" />Payment</p>
                 <div className="flex items-center gap-2">
                   <button type="button"
                     onClick={() => { setPaymentStatus("paid"); setPaymentEntries([{ mode: "upi", amount: String(newOrderTotal || 0), reference: "" }]); }}
