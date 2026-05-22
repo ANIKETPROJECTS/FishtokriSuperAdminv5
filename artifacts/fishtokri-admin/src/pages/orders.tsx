@@ -466,6 +466,23 @@ function formatAddressOneLine(a: any): string {
   return formatAddressLines(a).join(" · ");
 }
 
+function addMinutesToTimeStr(timeStr: string, mins: number): string {
+  if (!mins || !timeStr) return timeStr;
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return timeStr;
+  const [, hStr, mStr, period] = match;
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+  if (period.toUpperCase() === "AM" && h === 12) h = 0;
+  const total = h * 60 + m + mins;
+  const newH = Math.floor(total / 60) % 24;
+  const newM = total % 60;
+  const newPeriod = newH >= 12 ? "PM" : "AM";
+  const displayH = newH === 0 ? 12 : newH > 12 ? newH - 12 : newH;
+  return `${displayH}:${String(newM).padStart(2, "0")} ${newPeriod}`;
+}
+
 // ─── FILTER DELIVERY PERSONS BY HUB ───────────────────────────────────────────
 function getDeliveryPersonsForOrder(order: any, allPersons: any[]) {
   const orderSuperIds: string[] = [
@@ -975,9 +992,35 @@ export default function Orders() {
 
   const slotExtraCharge = useMemo(() => Number(selectedTimeslot?.extraCharge) || 0, [selectedTimeslot]);
 
+  const deliveryPincode = useMemo(() => {
+    if (orderDeliveryType !== "delivery") return "";
+    if (orderAddressMode === "saved" && chosenCustomer && selectedAddressIdx !== null) {
+      const a = (chosenCustomer.addresses ?? [])[selectedAddressIdx];
+      return getAddressFields(a)?.pincode || "";
+    }
+    return newAddress.pincode || "";
+  }, [orderDeliveryType, orderAddressMode, chosenCustomer, selectedAddressIdx, newAddress.pincode]);
+
+  const pincodeEntry = useMemo(() => {
+    if (!deliveryPincode || !selectedSubHubId) return null;
+    const sub = subHubs.find((h: any) => h.id === selectedSubHubId);
+    if (!sub) return null;
+    return (sub.pincodes || []).find((p: any) => p.pincode === deliveryPincode) || null;
+  }, [deliveryPincode, selectedSubHubId, subHubs]);
+
+  const pincodeDeliveryCharge = useMemo(() => {
+    if (orderDeliveryType !== "delivery") return 0;
+    return Number(pincodeEntry?.charge) || 0;
+  }, [pincodeEntry, orderDeliveryType]);
+
+  const pincodeTimeDelay = useMemo(() => {
+    if (orderDeliveryType !== "delivery") return 0;
+    return Number(pincodeEntry?.timeDelay) || 0;
+  }, [pincodeEntry, orderDeliveryType]);
+
   const newOrderTotal = useMemo(
-    () => Math.max(0, itemsSubtotal - couponDiscount + slotExtraCharge),
-    [itemsSubtotal, couponDiscount, slotExtraCharge]
+    () => Math.max(0, itemsSubtotal - couponDiscount + slotExtraCharge + pincodeDeliveryCharge),
+    [itemsSubtotal, couponDiscount, slotExtraCharge, pincodeDeliveryCharge]
   );
 
   const paidTotal = useMemo(
@@ -1200,6 +1243,7 @@ export default function Orders() {
         subtotal: itemsSubtotal,
         discount: couponDiscount,
         slotCharge: slotExtraCharge,
+        deliveryCharge: pincodeDeliveryCharge,
         total: newOrderTotal,
         // Coupons (multi)
         couponId: appliedCoupons[0] ? String(appliedCoupons[0]._id) : undefined,
@@ -2735,12 +2779,14 @@ export default function Orders() {
                           const id = String(t._id);
                           const isSelected = selectedTimeslotId === id;
                           const extra = Number(t.extraCharge) || 0;
+                          const displayStart = addMinutesToTimeStr(t.startTime, pincodeTimeDelay);
+                          const displayEnd = addMinutesToTimeStr(t.endTime, pincodeTimeDelay);
                           return (
                             <button key={id} type="button" onClick={() => setSelectedTimeslotId(id)}
                               className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
                             >
                               <span className={`text-xs font-semibold ${isSelected ? "text-[#1A56DB]" : "text-[#162B4D]"}`}>
-                                {t.startTime}–{t.endTime}{extra > 0 ? ` +₹${extra}` : ""}
+                                {displayStart}–{displayEnd}{extra > 0 ? ` +₹${extra}` : ""}
                               </span>
                             </button>
                           );
@@ -2870,6 +2916,12 @@ export default function Orders() {
                   <div className="flex justify-between text-xs text-[#1A56DB] font-medium">
                     <span>Slot charge</span>
                     <span>+₹{slotExtraCharge.toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+                {pincodeDeliveryCharge > 0 && (
+                  <div className="flex justify-between text-xs text-orange-600 font-medium">
+                    <span>Delivery charge ({deliveryPincode})</span>
+                    <span>+₹{pincodeDeliveryCharge.toLocaleString("en-IN")}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-1 border-t border-gray-100">
