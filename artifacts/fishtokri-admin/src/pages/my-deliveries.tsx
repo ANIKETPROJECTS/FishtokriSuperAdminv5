@@ -782,9 +782,9 @@ function OrdersList({ mode }: { mode: "active" | "history" }) {
                         <button
                           type="button"
                           onClick={() => setDeliverWalletTopup((v) => !v)}
-                          className={`flex-shrink-0 w-10 h-6 rounded-full transition-colors relative ${deliverWalletTopup ? "bg-blue-600" : "bg-gray-300"}`}
+                          className={`flex-shrink-0 relative w-10 h-6 rounded-full transition-colors ${deliverWalletTopup ? "bg-blue-600" : "bg-gray-300"}`}
                         >
-                          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${deliverWalletTopup ? "translate-x-4" : "translate-x-0.5"}`} />
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${deliverWalletTopup ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                       </div>
                     )}
