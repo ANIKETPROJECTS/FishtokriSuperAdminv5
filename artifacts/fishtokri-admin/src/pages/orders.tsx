@@ -252,9 +252,15 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
   const totalQty = items.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
   const discount = Number(order.discount) || 0;
   const slotCharge = Number(order.slotCharge) || 0;
+  const deliveryCharge = Number(order.deliveryCharge) || 0;
   const grandTotal = effectiveOrderTotal(order);
   const paidAmt = Number(order.paidAmount) || 0;
   const dueAmt = Number(order.dueAmount) || Math.max(0, grandTotal - paidAmt);
+  const invPays: any[] = Array.isArray(order.payments) ? order.payments : [];
+  const walletInvAmt = (() => {
+    const w = invPays.find((p: any) => String(p?.mode || "").toLowerCase() === "wallet");
+    return w ? Number(w.amount) || 0 : 0;
+  })();
 
   const invoiceNo = "INV-" + String(order._id).slice(-6).toUpperCase();
   const d = new Date(order.createdAt ?? Date.now());
@@ -379,6 +385,12 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
                     <td className="py-1 text-right">+ {slotCharge.toFixed(2)}</td>
                   </tr>
                 )}
+                {deliveryCharge > 0 && (
+                  <tr>
+                    <td className="py-1" colSpan={3}>Delivery Charge :</td>
+                    <td className="py-1 text-right">+ {deliveryCharge.toFixed(2)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
 
@@ -388,6 +400,18 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
               <span>Grand Total:</span>
               <span>{grandTotal.toFixed(2)}</span>
             </div>
+            {walletInvAmt > 0 && (
+              <div className="flex justify-between text-[13px] mt-1">
+                <span>Wallet Applied:</span>
+                <span>− {walletInvAmt.toFixed(2)}</span>
+              </div>
+            )}
+            {walletInvAmt > 0 && (
+              <div className="flex justify-between text-[14px] font-bold mt-0.5">
+                <span>Balance Due (Cash/UPI):</span>
+                <span>{Math.max(0, grandTotal - walletInvAmt).toFixed(2)}</span>
+              </div>
+            )}
             <div className="text-center text-[11px] text-gray-600 mt-1">( {numberToWords(grandTotal)} )</div>
 
             {(order.paidAmount !== undefined || order.dueAmount !== undefined) && (
@@ -2110,7 +2134,14 @@ export default function Orders() {
                       </td>
                       <td className="px-3 py-4">
                         <span className="font-bold text-black text-sm">{formatRupees(total)}</span>
-                        {o.instantDeliveryCharge ? <p className="text-xs text-orange-600">+{formatRupees(o.instantDeliveryCharge)} delivery</p> : null}
+                        {(Number(o.deliveryCharge) > 0) && <p className="text-xs text-orange-600">+{formatRupees(Number(o.deliveryCharge))} delivery</p>}
+                        {(Number(o.instantDeliveryCharge) > 0) && <p className="text-xs text-orange-600">+{formatRupees(Number(o.instantDeliveryCharge))} instant</p>}
+                        {(() => {
+                          const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
+                          const walletEntry = pays.find((p: any) => String(p?.mode || "").toLowerCase() === "wallet");
+                          const walletAmt = walletEntry ? Number(walletEntry.amount) || 0 : 0;
+                          return walletAmt > 0 ? <p className="text-xs text-[#364F9F] font-medium">−{formatRupees(walletAmt)} wallet</p> : null;
+                        })()}
                       </td>
                       <td className="px-3 py-4"><PaymentBadge order={o} /></td>
                       <td className="px-3 py-4">
@@ -3135,11 +3166,15 @@ export default function Orders() {
                     })}
                   </ul>
                   {(() => {
-                    const subtotal = orderTotal(selectedOrder.items);
+                    const subtotal = Number(selectedOrder.subtotal) > 0 ? Number(selectedOrder.subtotal) : orderTotal(selectedOrder.items);
                     const discount = Number(selectedOrder.discount) || 0;
                     const slot = Number(selectedOrder.slotCharge) || 0;
-                    const grand = effectiveOrderTotal(selectedOrder);
+                    const delivery = Number(selectedOrder.deliveryCharge) || 0;
                     const instant = Number(selectedOrder.instantDeliveryCharge) || 0;
+                    const grand = effectiveOrderTotal(selectedOrder);
+                    const pays: any[] = Array.isArray(selectedOrder.payments) ? selectedOrder.payments : [];
+                    const walletPay = pays.find((p: any) => String(p?.mode || "").toLowerCase() === "wallet");
+                    const walletUsed = walletPay ? Number(walletPay.amount) || 0 : 0;
                     return (
                       <div className="mt-5 pt-4 border-t border-gray-100 space-y-2.5">
                         <div className="flex justify-between text-sm font-semibold text-black">
@@ -3158,8 +3193,14 @@ export default function Orders() {
                             <span>+ {formatRupees(slot)}</span>
                           </div>
                         )}
+                        {delivery > 0 && (
+                          <div className="flex justify-between text-sm font-semibold text-orange-600">
+                            <span>Delivery charge</span>
+                            <span>+ {formatRupees(delivery)}</span>
+                          </div>
+                        )}
                         {instant > 0 && (
-                          <div className="flex justify-between text-sm font-semibold text-black">
+                          <div className="flex justify-between text-sm font-semibold text-orange-600">
                             <span>Instant delivery</span>
                             <span>+ {formatRupees(instant)}</span>
                           </div>
@@ -3168,6 +3209,18 @@ export default function Orders() {
                           <span className="font-extrabold text-black text-base">Grand Total</span>
                           <span className="font-extrabold text-[#F05B4E] text-xl">{formatRupees(grand)}</span>
                         </div>
+                        {walletUsed > 0 && (
+                          <div className="flex justify-between text-sm font-semibold text-[#364F9F]">
+                            <span>Wallet applied</span>
+                            <span>− {formatRupees(walletUsed)}</span>
+                          </div>
+                        )}
+                        {walletUsed > 0 && (
+                          <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-200">
+                            <span className="text-sm font-bold text-black">Amount due (cash/UPI)</span>
+                            <span className="text-sm font-extrabold text-black">{formatRupees(Math.max(0, grand - walletUsed))}</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
