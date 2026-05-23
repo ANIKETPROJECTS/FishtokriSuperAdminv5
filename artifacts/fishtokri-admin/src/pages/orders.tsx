@@ -2981,9 +2981,29 @@ export default function Orders() {
                     <span>+₹{pincodeDeliveryCharge.toLocaleString("en-IN")}</span>
                   </div>
                 )}
+                {useWallet && Number(chosenCustomer?.walletBalance) > 0 && (() => {
+                  const walletApplied = Math.min(Number(chosenCustomer!.walletBalance), newOrderTotal);
+                  return (
+                    <div className="flex justify-between text-xs text-[#364F9F] font-medium">
+                      <span>Wallet applied</span>
+                      <span>−₹{walletApplied.toLocaleString("en-IN")}</span>
+                    </div>
+                  );
+                })()}
                 <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                   <span className="text-sm font-bold text-[#162B4D]">Total</span>
-                  <span className="text-xl font-extrabold text-[#162B4D]">₹{newOrderTotal.toLocaleString("en-IN")}</span>
+                  {useWallet && Number(chosenCustomer?.walletBalance) > 0 ? (() => {
+                    const walletApplied = Math.min(Number(chosenCustomer!.walletBalance), newOrderTotal);
+                    const finalAmt = Math.max(0, newOrderTotal - walletApplied);
+                    return (
+                      <div className="text-right">
+                        <span className="text-xl font-extrabold text-[#162B4D]">₹{finalAmt.toLocaleString("en-IN")}</span>
+                        <span className="block text-[10px] text-gray-400 font-normal">+₹{walletApplied.toLocaleString("en-IN")} via wallet</span>
+                      </div>
+                    );
+                  })() : (
+                    <span className="text-xl font-extrabold text-[#162B4D]">₹{newOrderTotal.toLocaleString("en-IN")}</span>
+                  )}
                 </div>
                 <Button
                   onClick={handleCreateOrder}
