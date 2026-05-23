@@ -2249,6 +2249,13 @@ export default function Orders() {
                             <MaskIcon src={iconEdit} color="#1A56DB" className="w-[18px] h-[18px]" />
                           </button>
                           <button
+                            title="Invoice"
+                            onClick={() => setInvoiceOrder(o)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-violet-50 transition-colors"
+                          >
+                            <FileText className="w-[18px] h-[18px] text-violet-600" />
+                          </button>
+                          <button
                             title="Delete"
                             onClick={() => setDeletingOrder(o)}
                             className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-red-50 transition-colors"
