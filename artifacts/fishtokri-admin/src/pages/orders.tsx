@@ -2990,16 +2990,21 @@ export default function Orders() {
                   disabled={creatingSaving || totalItemCount === 0}
                   className="w-full h-9 bg-[#F05B4E] hover:bg-[#d94a3e] text-white font-bold text-sm rounded-xl gap-2 disabled:opacity-50"
                 >
-                  {creatingSaving
-                    ? (editingOrderId ? "Saving..." : "Creating...")
-                    : editingOrderId
-                      ? <><Pencil className="w-4 h-4" />Save Changes</>
-                      : paymentStatus === "paid"
-                        ? <><Zap className="w-4 h-4" />Checkout · ₹{newOrderTotal.toLocaleString("en-IN")}</>
-                        : paymentStatus === "partial"
-                          ? <><ShoppingBag className="w-4 h-4" />Place Order · ₹{Math.max(0, newOrderTotal - Math.min(Number(chosenCustomer?.walletBalance) || 0, newOrderTotal)).toLocaleString("en-IN")} due</>
-                          : <><ShoppingBag className="w-4 h-4" />Place Order (Cash)</>
-                  }
+                  {(() => {
+                    if (creatingSaving) return editingOrderId ? "Saving..." : "Creating...";
+                    if (editingOrderId) return <><Pencil className="w-4 h-4" />Save Changes</>;
+                    const walletApplied = useWallet ? Math.min(Number(chosenCustomer?.walletBalance) || 0, newOrderTotal) : 0;
+                    const nonWalletAmt = Math.max(0, newOrderTotal - walletApplied);
+                    if (paymentStatus === "paid") {
+                      return nonWalletAmt > 0
+                        ? <><Zap className="w-4 h-4" />Checkout · ₹{nonWalletAmt.toLocaleString("en-IN")}</>
+                        : <><Zap className="w-4 h-4" />Checkout (Wallet)</>;
+                    }
+                    if (paymentStatus === "partial") {
+                      return <><ShoppingBag className="w-4 h-4" />Place Order · ₹{nonWalletAmt.toLocaleString("en-IN")} due</>;
+                    }
+                    return <><ShoppingBag className="w-4 h-4" />Place Order (Cash)</>;
+                  })()}
                 </Button>
               </div>
 
