@@ -3285,10 +3285,7 @@ function CouponModal({ isOpen, onClose, coupon, subHubId, onSaved }: any) {
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Min Order (₹)</Label><Input type="number" min="0" value={minOrderAmount} onChange={(e) => setMinOrderAmount(e.target.value)} placeholder="0" className="h-9" /></div>
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Max Usage</Label><Input type="number" min="0" value={isFirstTimeOnly ? "1" : maxUsage} onChange={(e) => setMaxUsage(e.target.value)} placeholder="Unlimited" disabled={isFirstTimeOnly} className="h-9 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-50" /></div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Color Class</Label><Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. bg-orange-400" className="h-9" /></div>
-            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Expiry Date</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="h-9" /></div>
-          </div>
+          <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Expiry Date</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="h-9" /></div>
 
           {/* Applicable Categories */}
           <div className="space-y-1.5">
