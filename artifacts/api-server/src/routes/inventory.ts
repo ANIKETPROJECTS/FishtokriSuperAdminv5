@@ -166,16 +166,23 @@ async function persistBatches(
   }
 
   // Sync combo isActive based on whether this product's stock is available.
+  // productId may be stored as a string or ObjectId inside combo.includes — match both.
   if (combosCol) {
+    const pidStr = String(productId);
+    const pidOid = toId(pidStr);
+    const pidFilter = pidOid
+      ? { "includes.productId": { $in: [pidStr, pidOid] } }
+      : { "includes.productId": pidStr };
+
     if (total === 0) {
       // Stock is 0 (all batches consumed or expired) → deactivate every combo containing this product.
       const deactivated = await combosCol.updateMany(
-        { "includes.productId": String(productId), isActive: true },
+        { ...pidFilter, isActive: true },
         { $set: { isActive: false, updatedAt: new Date() } },
       );
       if (deactivated.modifiedCount > 0) {
         logger.info(
-          { productId: String(productId), combosDeactivated: deactivated.modifiedCount },
+          { productId: pidStr, combosDeactivated: deactivated.modifiedCount },
           "persistBatches: stock reached 0 — deactivated combos containing this product",
         );
       }
@@ -183,7 +190,7 @@ async function persistBatches(
       // Product now has available stock — re-activate any inactive combo that includes
       // this product, but only when ALL of its other constituent products also have stock.
       const inactiveCombos = await combosCol.find(
-        { "includes.productId": String(productId), isActive: false },
+        { ...pidFilter, isActive: false },
       ).toArray();
 
       const toReactivate: any[] = [];
@@ -191,8 +198,8 @@ async function persistBatches(
         const includes: any[] = Array.isArray(combo.includes) ? combo.includes : [];
         let allHaveStock = true;
         for (const inc of includes) {
-          if (String(inc.productId) === String(productId)) continue; // already confirmed > 0
-          const other = await productsCol.findOne({ _id: toId(inc.productId) }, { projection: { quantity: 1 } });
+          if (String(inc.productId) === pidStr) continue; // already confirmed > 0
+          const other = await productsCol.findOne({ _id: toId(String(inc.productId)) }, { projection: { quantity: 1 } });
           if (!other || (Number(other.quantity) || 0) <= 0) { allHaveStock = false; break; }
         }
         if (allHaveStock) toReactivate.push(combo._id);
@@ -204,7 +211,7 @@ async function persistBatches(
           { $set: { isActive: true, updatedAt: new Date() } },
         );
         logger.info(
-          { productId: String(productId), combosReactivated: toReactivate.length },
+          { productId: pidStr, combosReactivated: toReactivate.length },
           "persistBatches: product stock restored — reactivated combos containing this product",
         );
       }

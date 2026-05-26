@@ -506,7 +506,59 @@ router.get("/combos", async (req, res) => {
   try {
     const ctx = await getSubHubDb(req.params.id, res, req as ScopedRequest);
     if (!ctx) return;
-    const combos = await ctx.conn.db.collection("combos").find({}).sort({ sortOrder: 1, name: 1 }).toArray();
+    const combosCol = ctx.conn.db.collection("combos");
+    const productsCol = ctx.conn.db.collection("products");
+    const combos = await combosCol.find({}).sort({ sortOrder: 1, name: 1 }).toArray();
+
+    // Sync each combo's isActive against current product stock.
+    // A combo must be inactive if ANY of its constituent products has quantity <= 0.
+    const toDeactivate: any[] = [];
+    const toActivate: any[] = [];
+
+    for (const combo of combos) {
+      const includes: any[] = Array.isArray(combo.includes) ? combo.includes : [];
+      if (includes.length === 0) continue;
+
+      // Collect all productIds (support both string and ObjectId storage)
+      const productIds = includes.map((inc: any) => {
+        const id = inc.productId;
+        const oid = toId(String(id));
+        return oid;
+      }).filter(Boolean);
+
+      if (productIds.length === 0) continue;
+
+      const products = await productsCol
+        .find({ _id: { $in: productIds } }, { projection: { quantity: 1 } })
+        .toArray();
+
+      const anyOutOfStock = products.some((p: any) => (Number(p.quantity) || 0) <= 0)
+        || products.length < productIds.length; // some products missing entirely
+
+      if (anyOutOfStock && combo.isActive) {
+        toDeactivate.push(combo._id);
+        combo.isActive = false;
+      } else if (!anyOutOfStock && !combo.isActive) {
+        toActivate.push(combo._id);
+        combo.isActive = true;
+      }
+    }
+
+    // Persist the synced statuses in bulk
+    const now = new Date();
+    if (toDeactivate.length > 0) {
+      await combosCol.updateMany(
+        { _id: { $in: toDeactivate } },
+        { $set: { isActive: false, updatedAt: now } },
+      );
+    }
+    if (toActivate.length > 0) {
+      await combosCol.updateMany(
+        { _id: { $in: toActivate } },
+        { $set: { isActive: true, updatedAt: now } },
+      );
+    }
+
     res.json({ combos, total: combos.length });
   } catch (err) {
     req.log.error({ err }, "Failed to get combos");
