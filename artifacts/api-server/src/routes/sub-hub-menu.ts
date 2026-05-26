@@ -176,8 +176,28 @@ router.put("/products/:productId", async (req, res) => {
     if (recipes !== undefined) update.recipes = Array.isArray(recipes) ? recipes : [];
     if (sectionId !== undefined) update.sectionId = normalizeIdList(sectionId);
     if (couponIds !== undefined) update.couponIds = normalizeIdList(couponIds);
+    const existing = await ctx.conn.db.collection("products").findOne({ _id: oid });
+    if (!existing) { res.status(404).json({ error: "NotFound", message: "Product not found" }); return; }
     const result = await ctx.conn.db.collection("products").findOneAndUpdate({ _id: oid }, { $set: update }, { returnDocument: "after" });
     if (!result) { res.status(404).json({ error: "NotFound", message: "Product not found" }); return; }
+    if (couponIds !== undefined) {
+      const oldCouponIds: string[] = (existing.couponIds ?? []).map((c: any) => String(c));
+      const newCouponIds: string[] = (Array.isArray(couponIds) ? couponIds : []).map((c: any) => String(c));
+      const removedCouponIds = oldCouponIds.filter((id) => !newCouponIds.includes(id)).map((id) => toId(id)).filter(Boolean);
+      const addedCouponIds = newCouponIds.filter((id) => !oldCouponIds.includes(id)).map((id) => toId(id)).filter(Boolean);
+      if (removedCouponIds.length > 0) {
+        await ctx.conn.db.collection("coupons").updateMany(
+          { _id: { $in: removedCouponIds } },
+          { $pull: { applicableProducts: oid } }
+        );
+      }
+      if (addedCouponIds.length > 0) {
+        await ctx.conn.db.collection("coupons").updateMany(
+          { _id: { $in: addedCouponIds } },
+          { $addToSet: { applicableProducts: oid } }
+        );
+      }
+    }
     res.json({ product: result });
   } catch (err) {
     req.log.error({ err }, "Failed to update product");
