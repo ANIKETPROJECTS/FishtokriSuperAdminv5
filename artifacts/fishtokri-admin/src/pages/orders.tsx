@@ -262,7 +262,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
     return w ? Number(w.amount) || 0 : 0;
   })();
 
-  const invoiceNo = "INV-" + String(order._id).slice(-6).toUpperCase();
+  const invoiceNo = order.orderId || ("INV-" + String(order._id).slice(-6).toUpperCase());
   const d = new Date(order.createdAt ?? Date.now());
   const dateStr = [
     String(d.getDate()).padStart(2, "0"),
@@ -2058,7 +2058,7 @@ export default function Orders() {
                 <tbody className="divide-y divide-gray-50">
                   {orders.filter(o => o.status !== "cancelled").map((o, idx) => {
                     const tot = effectiveOrderTotal(o);
-                    const invNo = "INV-" + String(o._id).slice(-6).toUpperCase();
+                    const invNo = o.orderId || ("INV-" + String(o._id).slice(-6).toUpperCase());
                     return (
                       <tr key={String(o._id)} className="hover:bg-violet-50/30 transition-colors">
                         <td className="px-4 py-3">
