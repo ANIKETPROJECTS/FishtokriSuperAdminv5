@@ -129,11 +129,20 @@ function consumeBatches(batches: Batch[], qty: number, now: Date = new Date()): 
  */
 async function persistBatches(productsCol: any, productId: any, batches: Batch[], extra: Record<string, any> = {}) {
   const normalized = batches.map((b) => normalizeBatch(b));
-  const total = batchesTotal(normalized);
-  await productsCol.updateOne(
+  // quantity = only non-expired stock (expired batches are kept for admin visibility but not available for sale)
+  const nowMs = Date.now();
+  const total = batchesTotal(normalized.filter((b) => !b.expiryDate || new Date(b.expiryDate).getTime() >= nowMs));
+  const result = await productsCol.updateOne(
     { _id: productId },
     { $set: { batches: normalized, quantity: total, updatedAt: new Date(), ...extra } }
   );
+  if (result.matchedCount === 0) {
+    logger.warn({ productId: String(productId), total }, "persistBatches: updateOne matched 0 documents — product not found by _id");
+  } else if (result.modifiedCount === 0) {
+    logger.warn({ productId: String(productId), total }, "persistBatches: updateOne matched but modified 0 documents — data unchanged");
+  } else {
+    logger.info({ productId: String(productId), newTotal: total, batchCount: normalized.length }, "persistBatches: stock updated successfully");
+  }
   return { batches: normalized, quantity: total };
 }
 
@@ -734,8 +743,12 @@ async function applyDelta(order: OrderForSync, direction: "deduct" | "restore"):
     if (qty <= 0) continue;
 
     const existing = await products.findOne({ _id: pid });
-    if (!existing) continue;
+    if (!existing) {
+      logger.warn({ orderId, productId: String(pid) }, "applyDelta: product not found in sub-hub DB — skipping");
+      continue;
+    }
     const currentBatches: Batch[] = Array.isArray(existing.batches) ? existing.batches.map((b: any) => normalizeBatch(b)) : [];
+    logger.info({ orderId, direction, productId: String(pid), productName: existing.name, qty, batchCount: currentBatches.length, batchTotal: batchesTotal(currentBatches), storedQuantity: existing.quantity }, "applyDelta: processing item");
 
     let newBatches = currentBatches;
     let appliedExpiry: Date | null = null;
@@ -745,6 +758,7 @@ async function applyDelta(order: OrderForSync, direction: "deduct" | "restore"):
         const nowMs2 = now2.getTime();
         const consumed = consumeBatches(currentBatches, qty, now2);
         newBatches = consumed.batches;
+        logger.info({ orderId, productId: String(pid), batchesAfter: newBatches.length, totalAfter: batchesTotal(newBatches) }, "applyDelta: consumeBatches result");
         // Pick expiry from the oldest active (non-expired) batch that was consumed
         const activeSorted = sortBatchesFIFO(
           currentBatches.filter((b) => !b.expiryDate || new Date(b.expiryDate).getTime() >= nowMs2)
@@ -768,14 +782,33 @@ async function applyDelta(order: OrderForSync, direction: "deduct" | "restore"):
         continue;
       }
     } else {
-      // restore: push back as a new "restored" batch (preserves traceability)
-      newBatches = [...currentBatches, normalizeBatch({
-        batchNumber: `RESTORE-${orderRef}`,
-        quantity: qty,
-        receivedDate: now,
-        notes: `Restored from order ${orderRef}`,
-        createdAt: now,
-      })];
+      // restore: add quantity back into the most recently received active (non-expired) batch
+      // to avoid creating extra batches on every cancellation/delete.
+      const nowMs3 = now.getTime();
+      const activeBatches = currentBatches.filter(
+        (b) => !b.expiryDate || new Date(b.expiryDate).getTime() >= nowMs3
+      );
+      const sortedByRecent = [...activeBatches].sort((a, b) => {
+        const at = a.receivedDate ? new Date(a.receivedDate).getTime() : 0;
+        const bt = b.receivedDate ? new Date(b.receivedDate).getTime() : 0;
+        return bt - at; // most recent first
+      });
+      const targetBatch = sortedByRecent[0];
+      if (targetBatch) {
+        // Merge into the most recently received active batch
+        newBatches = currentBatches.map((b) =>
+          b._id && targetBatch._id && String(b._id) === String(targetBatch._id)
+            ? { ...b, quantity: b.quantity + qty }
+            : b
+        );
+      } else {
+        // No active batch — create a plain new batch (no RESTORE label)
+        newBatches = [...currentBatches, normalizeBatch({
+          quantity: qty,
+          receivedDate: now,
+          createdAt: now,
+        })];
+      }
     }
 
     const persisted = await persistBatches(products, pid, newBatches);

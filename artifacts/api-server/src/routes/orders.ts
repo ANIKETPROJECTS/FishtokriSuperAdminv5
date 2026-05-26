@@ -655,6 +655,7 @@ router.post("/", async (req: ScopedRequest, res) => {
 
     // Sync inventory (deduct stock for active orders).
     try {
+      req.log.info({ orderId: String(result.insertedId), subHubId: orderDoc.subHubId, status: orderDoc.status, itemCount: (orderDoc.items ?? []).length }, "order create: calling applyOrderInventoryOnCreate");
       const deducted = await applyOrderInventoryOnCreate({
         _id: result.insertedId,
         subHubId: orderDoc.subHubId,
@@ -662,6 +663,7 @@ router.post("/", async (req: ScopedRequest, res) => {
         status: orderDoc.status,
         items: orderDoc.items,
       });
+      req.log.info({ orderId: String(result.insertedId), deducted }, "order create: applyOrderInventoryOnCreate returned");
       if (deducted) {
         await conn.db.collection(COLLECTION).updateOne(
           { _id: result.insertedId },
