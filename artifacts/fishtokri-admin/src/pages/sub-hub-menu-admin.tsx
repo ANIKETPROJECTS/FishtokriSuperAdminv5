@@ -8,7 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft, Plus, Edit2, Trash2, Search, X, Package, Tag, Ticket,
   Database, AlertCircle, CheckCircle, XCircle, Image,
-  LayoutList, ShoppingBag, ChevronDown, ChevronUp, GripVertical,
+  LayoutList, ShoppingBag, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, GripVertical,
   LayoutGrid, List, SlidersHorizontal, ArrowUpDown, Clock,
   Download, Upload, FilePen,
 } from "lucide-react";
@@ -3958,22 +3958,50 @@ function displayTime(t: string): string {
 function TimePickerField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const { h, m, ampm } = parse12h(value);
   const [open, setOpen] = useState(false);
-
-  const setH = (newH: number) => onChange(format12h(newH, m, ampm));
-  const setM = (newM: number) => onChange(format12h(h, newM, ampm));
-  const setAmpm = (newAmpm: "AM" | "PM") => onChange(format12h(h, m, newAmpm));
+  const [mode, setMode] = useState<"hour" | "minute">("hour");
 
   const timeLabel = value
     ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`
     : "-- : -- --";
 
-  const hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  const SIZE = 200;
+  const CENTER = SIZE / 2;
+  const R = 78;
+
+  const hourItems  = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const minuteItems = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  const items = mode === "hour" ? hourItems : minuteItems;
+
+  const handAngle = mode === "hour"
+    ? ((h % 12) / 12) * 2 * Math.PI - Math.PI / 2
+    : (m / 60) * 2 * Math.PI - Math.PI / 2;
+  const handX = CENTER + R * Math.cos(handAngle);
+  const handY = CENTER + R * Math.sin(handAngle);
+
+  const handleClockClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scaleX = SIZE / rect.width;
+    const scaleY = SIZE / rect.height;
+    const x = (e.clientX - rect.left) * scaleX - CENTER;
+    const y = (e.clientY - rect.top) * scaleY - CENTER;
+    const dist = Math.sqrt(x * x + y * y);
+    if (dist < 20) return;
+    const rawAngle = Math.atan2(y, x);
+    const clockAngle = ((rawAngle + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI));
+    const idx = Math.round(clockAngle / (2 * Math.PI / 12)) % 12;
+    if (mode === "hour") {
+      onChange(format12h(hourItems[idx], m, ampm));
+      setMode("minute");
+    } else {
+      onChange(format12h(h, minuteItems[idx], ampm));
+      setOpen(false);
+    }
+  };
 
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-semibold text-gray-600">{label}</Label>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) setMode("hour"); }}>
         <PopoverTrigger asChild>
           <button
             type="button"
@@ -3983,16 +4011,34 @@ function TimePickerField({ label, value, onChange }: { label: string; value: str
             <span className={value ? "text-[#162B4D]" : "text-gray-400"}>{timeLabel}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-3 space-y-3" align="start" sideOffset={4}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Select Time</span>
-            <div className="flex rounded-md overflow-hidden border border-gray-200 text-xs font-semibold">
+        <PopoverContent className="w-[260px] p-4" align="start" sideOffset={4}>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Select Time</p>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => setMode("hour")}
+                className={`text-[36px] font-bold tabular-nums w-14 text-center rounded-lg py-0.5 transition-colors ${mode === "hour" ? "text-[#162B4D] bg-blue-50" : "text-gray-300 hover:text-gray-500"}`}
+              >
+                {String(h).padStart(2, "0")}
+              </button>
+              <span className="text-[36px] font-bold text-gray-200 select-none">:</span>
+              <button
+                type="button"
+                onClick={() => setMode("minute")}
+                className={`text-[36px] font-bold tabular-nums w-14 text-center rounded-lg py-0.5 transition-colors ${mode === "minute" ? "text-[#162B4D] bg-blue-50" : "text-gray-300 hover:text-gray-500"}`}
+              >
+                {String(m).padStart(2, "0")}
+              </button>
+            </div>
+            <div className="flex flex-col ml-2">
               {(["AM", "PM"] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
-                  onClick={() => setAmpm(p)}
-                  className={`px-3 py-1 transition-colors ${ampm === p ? "bg-[#162B4D] text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                  onClick={() => onChange(format12h(h, m, p))}
+                  className={`text-sm font-bold px-2 py-1 rounded-md transition-colors ${ampm === p ? "bg-[#162B4D] text-white" : "text-gray-300 hover:text-gray-600"}`}
                 >
                   {p}
                 </button>
@@ -4000,37 +4046,62 @@ function TimePickerField({ label, value, onChange }: { label: string; value: str
             </div>
           </div>
 
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Hour</p>
-            <div className="grid grid-cols-4 gap-1">
-              {hours.map((hr) => (
-                <button
-                  key={hr}
-                  type="button"
-                  onClick={() => setH(hr)}
-                  className={`rounded-md py-1.5 text-sm font-medium transition-colors ${h === hr ? "bg-[#1A56DB] text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
-                >
-                  {hr}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMode("hour")}
+              disabled={mode === "hour"}
+              className="p-1 rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <svg
+              viewBox={`0 0 ${SIZE} ${SIZE}`}
+              className="flex-1 cursor-pointer"
+              onClick={handleClockClick}
+            >
+              <circle cx={CENTER} cy={CENTER} r={CENTER - 1} fill="#F8FAFC" stroke="#E8EDF5" strokeWidth="1.5" />
+              <line x1={CENTER} y1={CENTER} x2={handX} y2={handY} stroke="#1A56DB" strokeWidth="2" strokeLinecap="round" />
+              <circle cx={CENTER} cy={CENTER} r="4" fill="#1A56DB" />
+              <circle cx={handX} cy={handY} r="3.5" fill="#1A56DB" />
+              {items.map((item, i) => {
+                const angle = (i / items.length) * 2 * Math.PI - Math.PI / 2;
+                const x = CENTER + R * Math.cos(angle);
+                const y = CENTER + R * Math.sin(angle);
+                const isSelected = mode === "hour" ? h === item : m === item;
+                return (
+                  <g key={item}>
+                    {isSelected && <circle cx={x} cy={y} r="15" fill="#1A56DB" />}
+                    <text
+                      x={x} y={y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="13"
+                      fontWeight={isSelected ? "700" : "400"}
+                      fill={isSelected ? "white" : "#4B5563"}
+                      style={{ userSelect: "none", pointerEvents: "none" }}
+                    >
+                      {mode === "minute" ? String(item).padStart(2, "0") : item}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+
+            <button
+              type="button"
+              onClick={() => setMode("minute")}
+              disabled={mode === "minute"}
+              className="p-1 rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Minute</p>
-            <div className="grid grid-cols-4 gap-1">
-              {minutes.map((mn) => (
-                <button
-                  key={mn}
-                  type="button"
-                  onClick={() => { setM(mn); setOpen(false); }}
-                  className={`rounded-md py-1.5 text-sm font-medium transition-colors ${m === mn ? "bg-[#1A56DB] text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
-                >
-                  {String(mn).padStart(2, "0")}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-center text-[10px] text-gray-400 mt-2 font-semibold uppercase tracking-widest">
+            {mode === "hour" ? "← Tap to set hour" : "Tap to set minute →"}
+          </p>
         </PopoverContent>
       </Popover>
     </div>
