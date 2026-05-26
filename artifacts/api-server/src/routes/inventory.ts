@@ -730,6 +730,47 @@ async function applyDelta(order: OrderForSync, direction: "deduct" | "restore") 
   }
 }
 
+/**
+ * Atomically claims and deducts inventory for orders that arrived without
+ * going through applyOrderInventoryOnCreate (e.g. customer-app-created orders
+ * inserted directly into MongoDB). Uses findOneAndUpdate with an inventoryDeducted
+ * condition to prevent double-deduction if multiple requests run concurrently.
+ */
+export async function autoDeductUndedcutedOrders(
+  ordersDb: any,
+  orders: Array<{ _id: any; status?: string; subHubId?: string; subHubName?: string; items?: any[]; inventoryDeducted?: boolean }>
+): Promise<void> {
+  const candidates = orders.filter(
+    (o) => ACTIVE_STATUSES.has(String(o.status ?? "").toLowerCase()) && o.inventoryDeducted !== true
+  );
+  if (candidates.length === 0) return;
+
+  for (const order of candidates) {
+    try {
+      // Atomically claim this order for deduction: only succeeds if inventoryDeducted is still not true
+      const claimed = await ordersDb.collection("orders").findOneAndUpdate(
+        { _id: order._id, inventoryDeducted: { $ne: true } },
+        { $set: { inventoryDeducted: true } },
+        { returnDocument: "before" }
+      );
+      if (!claimed) continue; // another request already claimed it
+      // Run the actual stock deduction
+      await applyDelta(
+        { _id: order._id, subHubId: order.subHubId, subHubName: order.subHubName, status: order.status, items: order.items },
+        "deduct"
+      );
+    } catch {
+      // Revert the flag so it can be retried next time
+      try {
+        await ordersDb.collection("orders").updateOne(
+          { _id: order._id },
+          { $set: { inventoryDeducted: false } }
+        );
+      } catch { /* best-effort */ }
+    }
+  }
+}
+
 export async function applyOrderInventoryOnCreate(order: OrderForSync) {
   if (!orderShouldDeduct(order)) return false;
   await applyDelta(order, "deduct");

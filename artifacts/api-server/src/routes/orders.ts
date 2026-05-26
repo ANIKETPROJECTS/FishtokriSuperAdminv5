@@ -7,6 +7,7 @@ import {
   applyOrderInventoryOnCreate,
   applyOrderInventoryOnUpdate,
   applyOrderInventoryOnDelete,
+  autoDeductUndedcutedOrders,
 } from "./inventory.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { loadScope, type ScopedRequest } from "../middlewares/scope.js";
@@ -188,6 +189,12 @@ router.get("/", async (req: ScopedRequest, res) => {
     ]);
 
     res.json({ orders, total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) });
+
+    // Fire-and-forget: deduct inventory for any active orders that arrived without
+    // going through applyOrderInventoryOnCreate (e.g. customer-app-created orders).
+    autoDeductUndedcutedOrders(conn.db, orders as any[]).catch((e) =>
+      req.log.error({ err: e }, "autoDeductUndedcutedOrders failed")
+    );
   } catch (err) {
     req.log.error({ err }, "Failed to list orders");
     res.status(500).json({ error: "InternalError", message: "Failed to fetch orders" });
