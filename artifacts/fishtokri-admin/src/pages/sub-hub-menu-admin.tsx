@@ -37,6 +37,7 @@ import { usePaginated } from "@/hooks/use-paginated";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -3927,6 +3928,106 @@ function TimeSlotsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: 
   );
 }
 
+function parse12h(time24: string): { h: number; m: number; ampm: "AM" | "PM" } {
+  if (!time24) return { h: 12, m: 0, ampm: "AM" };
+  const [hStr, mStr] = time24.split(":");
+  let h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr, 10) || 0;
+  const ampm: "AM" | "PM" = h >= 12 ? "PM" : "AM";
+  if (h === 0) h = 12;
+  else if (h > 12) h = h - 12;
+  return { h, m, ampm };
+}
+
+function format24h(h: number, m: number, ampm: "AM" | "PM"): string {
+  let hour = h;
+  if (ampm === "AM" && h === 12) hour = 0;
+  else if (ampm === "PM" && h !== 12) hour = h + 12;
+  return `${String(hour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function TimePickerField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const { h, m, ampm } = parse12h(value);
+  const [open, setOpen] = useState(false);
+
+  const setH = (newH: number) => onChange(format24h(newH, m, ampm));
+  const setM = (newM: number) => onChange(format24h(h, newM, ampm));
+  const setAmpm = (newAmpm: "AM" | "PM") => onChange(format24h(h, m, newAmpm));
+
+  const displayTime = value
+    ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`
+    : "-- : -- --";
+
+  const hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold text-gray-600">{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-input bg-white text-sm font-medium text-[#162B4D] hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/30"
+          >
+            <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <span className={value ? "text-[#162B4D]" : "text-gray-400"}>{displayTime}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3 space-y-3" align="start" sideOffset={4}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Select Time</span>
+            <div className="flex rounded-md overflow-hidden border border-gray-200 text-xs font-semibold">
+              {(["AM", "PM"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setAmpm(p)}
+                  className={`px-3 py-1 transition-colors ${ampm === p ? "bg-[#162B4D] text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Hour</p>
+            <div className="grid grid-cols-4 gap-1">
+              {hours.map((hr) => (
+                <button
+                  key={hr}
+                  type="button"
+                  onClick={() => setH(hr)}
+                  className={`rounded-md py-1.5 text-sm font-medium transition-colors ${h === hr ? "bg-[#1A56DB] text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
+                >
+                  {hr}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Minute</p>
+            <div className="grid grid-cols-4 gap-1">
+              {minutes.map((mn) => (
+                <button
+                  key={mn}
+                  type="button"
+                  onClick={() => { setM(mn); setOpen(false); }}
+                  className={`rounded-md py-1.5 text-sm font-medium transition-colors ${m === mn ? "bg-[#1A56DB] text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
+                >
+                  {String(mn).padStart(2, "0")}
+                </button>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder = 1, allItems = [] }: any) {
   const { toast } = useToast();
   const isEditing = !!timeslot;
@@ -3949,6 +4050,7 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
+    if (!startTime || !endTime) { toast({ title: "Please select both start and end times.", variant: "destructive" }); setSaving(false); return; }
     const soNum = Number(sortOrder) || 0;
     const dup = allItems.some((x: any) => (x.sortOrder ?? 0) === soNum && String(x._id) !== String(timeslot?._id));
     if (dup) { toast({ title: "Duplicate order number", description: `Sort order ${soNum} is already used by another time slot.`, variant: "destructive" }); setSaving(false); return; }
@@ -3967,8 +4069,8 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
         <DialogHeader><DialogTitle className="text-[#162B4D]">{isEditing ? "Edit Time Slot" : "Add Time Slot"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 pt-1">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Start Time *</Label><Input required type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-9" /></div>
-            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">End Time *</Label><Input required type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-9" /></div>
+            <TimePickerField label="Start Time *" value={startTime} onChange={setStartTime} />
+            <TimePickerField label="End Time *" value={endTime} onChange={setEndTime} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Sort Order</Label><Input type="number" min="0" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="h-9" /></div>
