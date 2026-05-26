@@ -3886,11 +3886,8 @@ function TimeSlotsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: 
 function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder = 1, allItems = [] }: any) {
   const { toast } = useToast();
   const isEditing = !!timeslot;
-  const [label, setLabel] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [isInstant, setIsInstant] = useState(false);
-  const [extraCharge, setExtraCharge] = useState("0");
   const [isActive, setIsActive] = useState(true);
   const [sortOrder, setSortOrder] = useState("1");
   const [saving, setSaving] = useState(false);
@@ -3898,11 +3895,10 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
   useEffect(() => {
     if (isOpen) {
       if (timeslot) {
-        setLabel(timeslot.label ?? ""); setStartTime(timeslot.startTime ?? ""); setEndTime(timeslot.endTime ?? "");
-        setIsInstant(timeslot.isInstant === true); setExtraCharge(String(timeslot.extraCharge ?? 0));
+        setStartTime(timeslot.startTime ?? ""); setEndTime(timeslot.endTime ?? "");
         setIsActive(timeslot.isActive !== false); setSortOrder(String(timeslot.sortOrder ?? 0));
       } else {
-        setLabel(""); setStartTime(""); setEndTime(""); setIsInstant(false); setExtraCharge("0"); setIsActive(true); setSortOrder(String(nextOrder));
+        setStartTime(""); setEndTime(""); setIsActive(true); setSortOrder(String(nextOrder));
       }
     }
   }, [isOpen, timeslot, nextOrder]);
@@ -3912,7 +3908,7 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
     const soNum = Number(sortOrder) || 0;
     const dup = allItems.some((x: any) => (x.sortOrder ?? 0) === soNum && String(x._id) !== String(timeslot?._id));
     if (dup) { toast({ title: "Duplicate order number", description: `Sort order ${soNum} is already used by another time slot.`, variant: "destructive" }); setSaving(false); return; }
-    const payload = { label, startTime, endTime, isInstant, extraCharge: Number(extraCharge) || 0, isActive, sortOrder: soNum };
+    const payload = { startTime, endTime, isActive, sortOrder: soNum };
     try {
       if (isEditing) { await apiFetch(`/api/sub-hubs/${subHubId}/menu/timeslots/${timeslot._id}`, { method: "PUT", body: JSON.stringify(payload) }); toast({ title: "Time slot updated" }); }
       else { await apiFetch(`/api/sub-hubs/${subHubId}/menu/timeslots`, { method: "POST", body: JSON.stringify(payload) }); toast({ title: "Time slot added" }); }
@@ -3926,18 +3922,13 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader><DialogTitle className="text-[#162B4D]">{isEditing ? "Edit Time Slot" : "Add Time Slot"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 pt-1">
-          <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Label *</Label><Input required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Morning Delivery" className="h-9" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Start Time *</Label><Input required type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-9" /></div>
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">End Time *</Label><Input required type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-9" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Extra Charge (₹)</Label><Input type="number" min="0" value={extraCharge} onChange={(e) => setExtraCharge(e.target.value)} className="h-9" /></div>
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Sort Order</Label><Input type="number" min="0" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="h-9" /></div>
-          </div>
-          <div className="flex gap-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg flex-1"><Label className="text-sm">Instant Delivery</Label><Switch checked={isInstant} onCheckedChange={setIsInstant} className="data-[state=checked]:bg-orange-500" /></div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg flex-1"><Label className="text-sm">Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} className="data-[state=checked]:bg-[#1A56DB]" /></div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><Label className="text-sm">Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} className="data-[state=checked]:bg-[#1A56DB]" /></div>
           </div>
           <DialogFooter className="pt-1"><Button type="button" variant="outline" onClick={onClose} className="h-9">Cancel</Button><Button type="submit" disabled={saving} className="bg-[#1A56DB] hover:bg-[#1447B4] h-9">{isEditing ? "Save Changes" : "Add Slot"}</Button></DialogFooter>
         </form>
