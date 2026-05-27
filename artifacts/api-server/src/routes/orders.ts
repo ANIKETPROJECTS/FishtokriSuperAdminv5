@@ -697,6 +697,7 @@ router.post("/", async (req: ScopedRequest, res) => {
           addresses: firstAddress ? [firstAddress] : [],
           orders: [],
           usedCoupons: [],
+          activeCoupons: [],
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -773,6 +774,76 @@ router.post("/", async (req: ScopedRequest, res) => {
 
     Object.keys(orderDoc).forEach((k) => orderDoc[k] === undefined && delete orderDoc[k]);
 
+    // --- Coupon conflict check (BEFORE insert) ---
+    // If the customer already has this coupon locked in a LIVE active order
+    // (i.e. it's in activeCoupons AND the referenced order still exists),
+    // reject the new order. Stale entries (order was force-deleted) are
+    // automatically pruned here so they don't block reuse forever.
+    const preCheckCoupons = extractOrderCoupons(orderDoc);
+    if (preCheckCoupons.length > 0 && resolvedCustomerId) {
+      const cColPre = await getCustomersCollection();
+      const customerDoc = await cColPre.findOne(
+        { _id: toId(resolvedCustomerId) },
+        { projection: { activeCoupons: 1 } },
+      );
+      if (customerDoc && Array.isArray(customerDoc.activeCoupons) && customerDoc.activeCoupons.length > 0) {
+        const requestedCouponIds = new Set(preCheckCoupons.map((c) => c.couponId));
+
+        // Separate active-coupon entries that overlap with the requested coupons.
+        const overlapping = customerDoc.activeCoupons.filter((ac: any) =>
+          requestedCouponIds.has(String(ac.couponId).trim()),
+        );
+
+        if (overlapping.length > 0) {
+          // Verify each overlapping entry against the orders DB.
+          // An entry is "live" only when its order document still exists.
+          const ordersConn = await getOrdersDb();
+          const overlappingOrderIds = overlapping
+            .map((ac: any) => ac.orderId)
+            .filter(Boolean)
+            .map((id: string) => { try { return toId(id); } catch { return null; } })
+            .filter(Boolean);
+
+          const existingOrders = overlappingOrderIds.length > 0
+            ? await ordersConn.db.collection(COLLECTION)
+                .find({ _id: { $in: overlappingOrderIds } }, { projection: { _id: 1 } })
+                .toArray()
+            : [];
+
+          const existingOrderIdSet = new Set(existingOrders.map((o: any) => String(o._id)));
+
+          // Split overlapping into live vs stale.
+          const liveConflicts = overlapping.filter((ac: any) => existingOrderIdSet.has(String(ac.orderId)));
+          const staleEntries  = overlapping.filter((ac: any) => !existingOrderIdSet.has(String(ac.orderId)));
+
+          // Prune stale entries so they never block again.
+          if (staleEntries.length > 0) {
+            const staleOrderIds = staleEntries.map((ac: any) => String(ac.orderId));
+            await cColPre.updateOne(
+              { _id: toId(resolvedCustomerId) },
+              { $pull: { activeCoupons: { orderId: { $in: staleOrderIds } } } as any },
+            );
+            req.log.info({ customerId: resolvedCustomerId, staleOrderIds }, "Pruned stale activeCoupons entries");
+          }
+
+          // Block only if there is a genuinely live conflict.
+          if (liveConflicts.length > 0) {
+            const conflictingCouponIds = new Set(liveConflicts.map((ac: any) => String(ac.couponId)));
+            const codes = preCheckCoupons
+              .filter((c) => conflictingCouponIds.has(c.couponId))
+              .map((c) => c.couponCode || c.couponId)
+              .join(", ");
+            res.status(400).json({
+              error: "CouponAlreadyActive",
+              message: `Coupon ${codes} is already applied to an active order for this customer. It will be available again once that order is delivered or cancelled.`,
+            });
+            return;
+          }
+        }
+      }
+    }
+    // --- End coupon conflict check ---
+
     const conn = await getOrdersDb();
     orderDoc.orderId = await generateOrderId(conn.db);
     const result = await conn.db.collection(COLLECTION).insertOne(orderDoc);
@@ -831,6 +902,13 @@ router.post("/", async (req: ScopedRequest, res) => {
 
     // Track coupon in customer's activeCoupons so it can't be reused on the next order.
     const orderCouponsOnCreate = extractOrderCoupons(orderDoc);
+    req.log.info({
+      couponCount: orderCouponsOnCreate.length,
+      resolvedCustomerId: resolvedCustomerId ?? null,
+      orderStatus: orderDoc.status,
+      hasCouponId: !!orderDoc.couponId,
+      hasCouponsArray: Array.isArray(orderDoc.coupons) && orderDoc.coupons.length > 0,
+    }, "Coupon lifecycle: pre-check on order create");
     if (orderCouponsOnCreate.length > 0 && resolvedCustomerId && orderDoc.status !== "cancelled") {
       try {
         const cCol = await getCustomersCollection();
