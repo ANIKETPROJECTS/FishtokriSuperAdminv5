@@ -6,7 +6,7 @@ import {
   ArrowUpDown, SlidersHorizontal, X, LayoutGrid, LayoutList,
   MapPin, ShoppingBag, ChevronLeft, ChevronRight, Users,
   Home, Clock, CheckCircle2, ClipboardList, Package,
-  CreditCard, Truck, UserRound, ChevronDown, ChevronUp, Tag, Wallet,
+  CreditCard, Truck, UserRound, ChevronDown, ChevronUp, Tag, Wallet, RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -881,11 +881,17 @@ function CustomerDetailPage({
 }) {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["customer", customerId],
     queryFn: () => fetchCustomer(customerId),
     enabled: !!customerId,
   });
+
+  // Auto-refresh every 30 seconds, same cadence as orders page.
+  useEffect(() => {
+    const id = setInterval(() => { refetch(); }, 30000);
+    return () => clearInterval(id);
+  }, [refetch]);
 
   const fullCustomer = data ?? null;
   const { current, history, all } = useMemo(
@@ -915,31 +921,41 @@ function CustomerDetailPage({
           <ChevronLeft className="w-4 h-4" />
           Back to Customers
         </button>
-        {fullCustomer && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setWalletModalOpen(true)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-gray-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
-            >
-              <Wallet className="w-[14px] h-[14px]" />
-              Wallet
-            </button>
-            <button
-              onClick={() => onEdit(fullCustomer)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-gray-200 bg-white text-black hover:bg-blue-50 hover:border-blue-200 hover:text-[#1A56DB] transition-colors"
-            >
-              <MaskIcon src={iconEdit} color="#1A56DB" className="w-[14px] h-[14px]" />
-              Edit Customer
-            </button>
-            <button
-              onClick={() => onDelete(fullCustomer)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-gray-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
-            >
-              <MaskIcon src={iconDelete} color="#E02424" className="w-[14px] h-[14px]" />
-              Delete
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {fullCustomer && (
+            <>
+              <button
+                onClick={() => setWalletModalOpen(true)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-gray-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
+              >
+                <Wallet className="w-[14px] h-[14px]" />
+                Wallet
+              </button>
+              <button
+                onClick={() => onEdit(fullCustomer)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-gray-200 bg-white text-black hover:bg-blue-50 hover:border-blue-200 hover:text-[#1A56DB] transition-colors"
+              >
+                <MaskIcon src={iconEdit} color="#1A56DB" className="w-[14px] h-[14px]" />
+                Edit Customer
+              </button>
+              <button
+                onClick={() => onDelete(fullCustomer)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-gray-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
+              >
+                <MaskIcon src={iconDelete} color="#E02424" className="w-[14px] h-[14px]" />
+                Delete
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Refresh"
+            className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-[#1A56DB] transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
