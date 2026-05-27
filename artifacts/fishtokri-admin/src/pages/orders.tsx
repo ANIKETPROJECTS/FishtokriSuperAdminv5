@@ -909,12 +909,24 @@ export default function Orders() {
 
   const activeCoupons = useMemo(() => {
     const now = Date.now();
+    const customerActiveCoupons: any[] = chosenCustomer?.activeCoupons ?? [];
+    const customerUsedCoupons: any[] = chosenCustomer?.usedCoupons ?? [];
     return coupons.filter((c) => {
       if (c.isActive === false) return false;
       if (c.expiresAt && new Date(c.expiresAt).getTime() < now) return false;
+      // Hide coupons the customer has already exhausted their usage limit for
+      if (c.maxUsage != null && Number(c.maxUsage) > 0 && chosenCustomer) {
+        const couponId = String(c._id);
+        const activeEntry = customerActiveCoupons.find((ac: any) => String(ac.couponId) === couponId);
+        const activeCount = activeEntry
+          ? (activeEntry.usedCount != null ? Number(activeEntry.usedCount) : 1)
+          : 0;
+        const historicalCount = customerUsedCoupons.filter((uc: any) => String(uc.couponId) === couponId).length;
+        if (activeCount + historicalCount >= Number(c.maxUsage)) return false;
+      }
       return true;
     });
-  }, [coupons]);
+  }, [coupons, chosenCustomer]);
 
   const stockOf = useCallback((productId: string): number => {
     const p = subHubProducts.find((x) => String(x._id) === productId);
