@@ -11,3 +11,9 @@ id = "_ULFns-qV2pt3QMkRUZNN"
 uri = "file://prompt.md"
 type = "text"
 title = "Coupon Logic Implementation Prompt"
+
+[[outputs]]
+id = "w-muzyQInFcQM4RxNMka_"
+uri = "file://prompt2.md"
+type = "text"
+title = "Wallet Payment Integration Prompt"
