@@ -3851,9 +3851,9 @@ function TimeSlotsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: 
   _slotExportRef.current = handleSlotExport;
   const _slotStableExport = useCallback(() => { _slotExportRef.current(); }, []);
   useEffect(() => {
-    onSetExcel({ busy: xlsxBusy, onImport: _slotImportClick, onEdit: _slotEditClick, onExport: _slotStableExport, count: processed.length });
+    onSetExcel({ busy: xlsxBusy, onImport: _slotImportClick, onEdit: _slotEditClick, onExport: _slotStableExport, onRefresh: load, count: processed.length });
     return () => onSetExcel(null);
-  }, [xlsxBusy, processed.length, _slotImportClick, _slotEditClick, _slotStableExport, onSetExcel]);
+  }, [xlsxBusy, processed.length, _slotImportClick, _slotEditClick, _slotStableExport, onSetExcel, load]);
 
   return (
     <div className="space-y-4">
