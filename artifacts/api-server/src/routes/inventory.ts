@@ -530,6 +530,15 @@ router.post("/adjustments", async (req, res) => {
         newBatches.push(batch);
         delta = addQty;
         appliedBatch = batch;
+      } else if (mode === "add_existing") {
+        const addQty = Math.max(0, Number(it.addQuantity) || 0);
+        if (addQty <= 0) continue;
+        if (!it.batchId) continue;
+        const targetIdx = currentBatches.findIndex((b) => String(b._id) === String(it.batchId));
+        if (targetIdx < 0) continue;
+        newBatches = currentBatches.map((b, i) => i === targetIdx ? { ...b, quantity: b.quantity + addQty } : b);
+        delta = addQty;
+        appliedBatch = newBatches[targetIdx];
       } else if (mode === "remove") {
         const rmQty = Math.max(0, Number(it.removeQuantity) || 0);
         if (rmQty <= 0) continue;

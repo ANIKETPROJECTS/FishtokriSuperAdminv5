@@ -1,16 +1,14 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Building2, Plus, Search, X, Trash2, ChevronDown, ChevronRight,
-  SlidersHorizontal, Lock, PackageOpen, Calendar, Hash, Layers,
+  Lock, PackageOpen, Calendar, Hash, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { PaginationBar } from "@/components/pagination-bar";
-import { usePaginated } from "@/hooks/use-paginated";
 import { getCurrentAdminScope } from "@/lib/api";
 
 function getToken() { return localStorage.getItem("fishtokri_token") ?? ""; }
@@ -51,7 +49,7 @@ type Batch = {
 };
 type Product = { id: string; name: string; category: string; unit: string; quantity: number; batches?: Batch[] };
 
-type FormMode = "add" | "remove";
+type FormMode = "add" | "remove" | "add_existing";
 type FormRow = {
   productId: string;
   productName: string;
@@ -324,17 +322,19 @@ function ProductSelector({
   );
 }
 
-// ─── BATCH SELECTOR (for remove mode) ────────────────────────────────────────
+// ─── BATCH SELECTOR (for remove / add_existing modes) ────────────────────────
 function BatchSelector({
   batches,
   unit,
   selectedBatchId,
   onSelect,
+  mode = "remove",
 }: {
   batches: Batch[];
   unit: string;
   selectedBatchId: string;
   onSelect: (batchId: string) => void;
+  mode?: "remove" | "add_existing";
 }) {
   const activeBatches = batches.filter((b) => b.quantity > 0);
   const [open, setOpen] = useState(false);
@@ -363,16 +363,20 @@ function BatchSelector({
   const dropdown = (
     <div ref={portalRef} style={style} className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
       <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
-        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Select Batch to Reduce</span>
+        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+          {mode === "add_existing" ? "Select Batch to Add Into" : "Select Batch to Reduce"}
+        </span>
       </div>
       <div className="max-h-56 overflow-y-auto">
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); onSelect(""); setOpen(false); }}
-          className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 flex items-center gap-2 ${!selectedBatchId ? "bg-amber-50" : ""}`}
-        >
-          <span className="text-sm font-medium text-gray-500 italic">FIFO (auto — earliest expiry first)</span>
-        </button>
+        {mode === "remove" && (
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); onSelect(""); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 flex items-center gap-2 ${!selectedBatchId ? "bg-amber-50" : ""}`}
+          >
+            <span className="text-sm font-medium text-gray-500 italic">FIFO (auto — earliest expiry first)</span>
+          </button>
+        )}
         {activeBatches.length === 0 ? (
           <div className="px-4 py-4 text-sm text-gray-400 text-center">No active batches</div>
         ) : activeBatches.map((b) => {
@@ -406,6 +410,11 @@ function BatchSelector({
     </div>
   );
 
+  const placeholder = mode === "add_existing" ? "Select a batch" : "FIFO (auto)";
+  const selectedStyle = mode === "add_existing"
+    ? "bg-[#364F9F]/5 border-[#364F9F]/30 text-[#162B4D]"
+    : "bg-amber-50 border-amber-200 text-[#162B4D]";
+
   return (
     <div ref={wrapperRef} className="relative w-full">
       <button
@@ -413,9 +422,9 @@ function BatchSelector({
         onClick={() => setOpen(!open)}
         className={`w-full h-9 px-3 text-sm font-medium text-left border rounded-lg outline-none transition-all flex items-center justify-between gap-2
           focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]
-          ${selected ? "bg-amber-50 border-amber-200 text-[#162B4D]" : "border-gray-200 bg-white text-gray-400"}`}
+          ${selected ? selectedStyle : "border-gray-200 bg-white text-gray-400"}`}
       >
-        <span className="truncate">{selected ? selected.batchNumber || "Unnamed" : "FIFO (auto)"}</span>
+        <span className="truncate">{selected ? selected.batchNumber || "Unnamed" : placeholder}</span>
         <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && createPortal(dropdown, document.body)}
@@ -426,61 +435,72 @@ function BatchSelector({
 // ─── EXISTING BATCHES CARD ───────────────────────────────────────────────────
 function ExistingBatchesCard({ batches, unit }: { batches: Batch[]; unit: string }) {
   const activeBatches = batches.filter((b) => b.quantity > 0);
+  const [open, setOpen] = useState(false);
   if (activeBatches.length === 0) return null;
 
   return (
     <div className="mt-3 rounded-xl border border-[#364F9F]/15 bg-[#364F9F]/3 overflow-hidden">
-      <div className="px-4 py-2 bg-[#364F9F]/8 border-b border-[#364F9F]/15 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-4 py-2 bg-[#364F9F]/8 flex items-center gap-2 hover:bg-[#364F9F]/12 transition-colors"
+      >
         <Layers className="w-3.5 h-3.5 text-[#364F9F]" />
-        <span className="text-[11px] font-bold text-[#364F9F] uppercase tracking-widest">
+        <span className="text-[11px] font-bold text-[#364F9F] uppercase tracking-widest flex-1 text-left">
           Existing Batches ({activeBatches.length})
         </span>
-      </div>
-      <div className="divide-y divide-[#364F9F]/10">
-        {activeBatches.map((b) => {
-          const dl = daysUntil(b.expiryDate);
-          const expBg = dl == null ? "bg-gray-100 text-gray-600 border-gray-200"
-            : dl < 0 ? "bg-red-50 text-red-700 border-red-200"
-            : dl <= 7 ? "bg-amber-50 text-amber-700 border-amber-200"
-            : "bg-emerald-50 text-emerald-700 border-emerald-200";
-          const expLabel = dl == null ? "No expiry"
-            : dl < 0 ? `Expired ${Math.abs(dl)}d ago`
-            : dl === 0 ? "Expires today"
-            : `${dl}d left`;
+        <ChevronDown className={`w-3.5 h-3.5 text-[#364F9F] transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
 
-          return (
-            <div key={b.id} className="px-4 py-2.5 grid grid-cols-4 gap-3 items-center hover:bg-white/60 transition-colors">
-              <div className="flex items-center gap-2 min-w-0">
-                <Hash className="w-3 h-3 text-[#364F9F] flex-shrink-0" />
-                <span className="text-[12px] font-bold text-[#162B4D] truncate">{b.batchNumber || "—"}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <PackageOpen className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                <span className="text-[12px] font-bold text-[#162B4D]">{b.quantity}</span>
-                <span className="text-[11px] text-gray-400 font-medium">{unit}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                <span className="text-[11px] text-gray-500 font-medium">{formatDate(b.receivedDate)}</span>
-              </div>
-              <div>
-                <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border ${expBg}`}>
-                  {b.expiryDate ? formatExpiry(b.expiryDate) : "—"}
-                  <span className="ml-1 opacity-75">· {expLabel}</span>
-                </span>
-              </div>
+      {open && (
+        <>
+          <div className="px-4 py-1.5 bg-[#364F9F]/5 border-y border-[#364F9F]/10">
+            <div className="grid grid-cols-4 gap-3">
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Batch ID</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Qty Available</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Added Date</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Expiry Date</span>
             </div>
-          );
-        })}
-      </div>
-      <div className="px-4 py-1.5 bg-[#364F9F]/5 border-t border-[#364F9F]/10">
-        <div className="grid grid-cols-4 gap-3">
-          <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Batch ID</span>
-          <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Qty Available</span>
-          <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Added Date</span>
-          <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Expiry Date</span>
-        </div>
-      </div>
+          </div>
+          <div className="divide-y divide-[#364F9F]/10">
+            {activeBatches.map((b) => {
+              const dl = daysUntil(b.expiryDate);
+              const expBg = dl == null ? "bg-gray-100 text-gray-600 border-gray-200"
+                : dl < 0 ? "bg-red-50 text-red-700 border-red-200"
+                : dl <= 7 ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200";
+              const expLabel = dl == null ? "No expiry"
+                : dl < 0 ? `Expired ${Math.abs(dl)}d ago`
+                : dl === 0 ? "Expires today"
+                : `${dl}d left`;
+
+              return (
+                <div key={b.id} className="px-4 py-2.5 grid grid-cols-4 gap-3 items-center hover:bg-white/60 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Hash className="w-3 h-3 text-[#364F9F] flex-shrink-0" />
+                    <span className="text-[12px] font-bold text-[#162B4D] truncate">{b.batchNumber || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <PackageOpen className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="text-[12px] font-bold text-[#162B4D]">{b.quantity}</span>
+                    <span className="text-[11px] text-gray-400 font-medium">{unit}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="text-[11px] text-gray-500 font-medium">{formatDate(b.receivedDate)}</span>
+                  </div>
+                  <div>
+                    <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border ${expBg}`}>
+                      {b.expiryDate ? formatExpiry(b.expiryDate) : "—"}
+                      <span className="ml-1 opacity-75">· {expLabel}</span>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -488,7 +508,6 @@ function ExistingBatchesCard({ batches, unit }: { batches: Batch[]; unit: string
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function InventoryStockAdjustment() {
   const { toast } = useToast();
-  const [view, setView] = useState<"list" | "form">("list");
   const [superHubs, setSuperHubs] = useState<SuperHub[]>([]);
   const [subHubs, setSubHubs] = useState<SubHub[]>([]);
   const [selectedSuperHubId, setSelectedSuperHubId] = useState("");
@@ -497,8 +516,6 @@ export default function InventoryStockAdjustment() {
   const [selectedSubHub, setSelectedSubHub] = useState<SubHub | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [formDate, setFormDate] = useState(toInputDate(new Date()));
@@ -561,31 +578,13 @@ export default function InventoryStockAdjustment() {
   }, [selectedSubHubId, subHubs]);
 
   function reload() {
-    if (!selectedSubHubId) { setProducts([]); setAdjustments([]); return; }
-    setLoading(true);
-    Promise.all([
-      apiFetch(`/api/inventory/products?subHubId=${selectedSubHubId}`),
-      apiFetch(`/api/inventory/adjustments?subHubId=${selectedSubHubId}`),
-    ])
-      .then(([prodRes, adjRes]) => {
-        setProducts(prodRes.products ?? []);
-        setAdjustments(adjRes.adjustments ?? []);
-      })
-      .catch((err) => toast({ title: "Failed to load", description: err.message, variant: "destructive" }))
-      .finally(() => setLoading(false));
+    if (!selectedSubHubId) { setProducts([]); return; }
+    apiFetch(`/api/inventory/products?subHubId=${selectedSubHubId}`)
+      .then((res) => setProducts(res.products ?? []))
+      .catch((err) => toast({ title: "Failed to load products", description: err.message, variant: "destructive" }));
   }
 
   useEffect(reload, [selectedSubHubId]);
-
-  const pagedAdjustments = usePaginated(adjustments, 20, selectedSubHubId);
-
-  function openForm() {
-    setFormDate(toInputDate(new Date()));
-    setFormReason("");
-    setFormNotes("");
-    setFormRows([emptyRow()]);
-    setView("form");
-  }
 
   function addRow() { setFormRows((rows) => [...rows, emptyRow()]); }
   function removeRow(i: number) { setFormRows((rows) => rows.filter((_, idx) => idx !== i)); }
@@ -603,10 +602,6 @@ export default function InventoryStockAdjustment() {
       batchNumber: r.mode === "add" ? autoNum : "",
       selectedBatchId: "",
     } : r));
-  }
-
-  function clearProduct(i: number) {
-    updateRow(i, { productId: "", productName: "", category: "", unit: "", quantityBefore: 0, search: "", batchNumber: "", selectedBatchId: "" });
   }
 
   function onSearchChange(i: number, val: string) {
@@ -634,10 +629,18 @@ export default function InventoryStockAdjustment() {
     updateRow(i, { expiryDate: val, shelfLifeDays: "" });
   }
 
+  function resetForm() {
+    setFormDate(toInputDate(new Date()));
+    setFormReason("");
+    setFormNotes("");
+    setFormRows([emptyRow()]);
+  }
+
   async function handleSave() {
     const validRows = formRows.filter((r) =>
       r.productId && (
         (r.mode === "add" && r.addQuantity !== "" && Number(r.addQuantity) > 0) ||
+        (r.mode === "add_existing" && r.selectedBatchId && r.addQuantity !== "" && Number(r.addQuantity) > 0) ||
         (r.mode === "remove" && r.removeQuantity !== "" && Number(r.removeQuantity) > 0)
       )
     );
@@ -646,6 +649,11 @@ export default function InventoryStockAdjustment() {
     const missingExpiry = validRows.find((r) => r.mode === "add" && !r.shelfLifeDays && !r.expiryDate);
     if (missingExpiry) {
       toast({ title: "Set shelf life or expiry", description: `Add shelf life (days) or an expiry date for ${missingExpiry.productName}.`, variant: "destructive" });
+      return;
+    }
+    const missingBatch = validRows.find((r) => r.mode === "add_existing" && !r.selectedBatchId);
+    if (missingBatch) {
+      toast({ title: "Select a batch", description: `Choose which existing batch to add into for ${missingBatch.productName}.`, variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -658,26 +666,29 @@ export default function InventoryStockAdjustment() {
           date: formDate,
           reason: formReason,
           notes: formNotes,
-          items: validRows.map((r) => r.mode === "add"
-            ? {
-                productId: r.productId,
-                mode: "add",
-                addQuantity: Number(r.addQuantity),
-                shelfLifeDays: r.shelfLifeDays !== "" ? Number(r.shelfLifeDays) : undefined,
-                expiryDate: r.expiryDate || undefined,
-                batchNumber: r.batchNumber || undefined,
-              }
-            : {
-                productId: r.productId,
-                mode: "remove",
-                removeQuantity: Number(r.removeQuantity),
-                batchId: r.selectedBatchId || undefined,
-              }
-          ),
+          items: validRows.map((r) => {
+            if (r.mode === "add") return {
+              productId: r.productId, mode: "add",
+              addQuantity: Number(r.addQuantity),
+              shelfLifeDays: r.shelfLifeDays !== "" ? Number(r.shelfLifeDays) : undefined,
+              expiryDate: r.expiryDate || undefined,
+              batchNumber: r.batchNumber || undefined,
+            };
+            if (r.mode === "add_existing") return {
+              productId: r.productId, mode: "add_existing",
+              batchId: r.selectedBatchId,
+              addQuantity: Number(r.addQuantity),
+            };
+            return {
+              productId: r.productId, mode: "remove",
+              removeQuantity: Number(r.removeQuantity),
+              batchId: r.selectedBatchId || undefined,
+            };
+          }),
         }),
       });
       toast({ title: "Stock adjustment saved" });
-      setView("list");
+      resetForm();
       reload();
     } catch (err: any) {
       toast({ title: "Failed to save", description: err.message, variant: "destructive" });
@@ -692,9 +703,7 @@ export default function InventoryStockAdjustment() {
   const headerContent = (
     <div className="flex items-center justify-between w-full gap-4 min-w-0">
       <div className="min-w-0 flex-shrink-0">
-        <p className="text-sm font-bold text-[#162B4D] leading-tight">
-          {view === "form" ? "Add Stock Adjustment" : "Inventory Stock Adjustment"}
-        </p>
+        <p className="text-sm font-bold text-[#162B4D] leading-tight">Inventory Stock Adjustment</p>
         <p className="text-[11px] text-gray-400 leading-tight hidden sm:block">Adjust quantities for multiple products at once.</p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
@@ -716,350 +725,247 @@ export default function InventoryStockAdjustment() {
   );
 
   // ─── FORM VIEW ───────────────────────────────────────────────────────────────
-  if (view === "form") {
-    return (
-      <>
-        {headerSlot && createPortal(headerContent, headerSlot)}
-        <div className="space-y-6">
-          {/* Back navigation */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setView("list")}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#364F9F] hover:text-[#162B4D] transition-colors"
-            >
-              ← Back to list
-            </button>
-          </div>
-
-          {/* Header meta row */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <div>
-              <h2 className="text-base font-bold text-[#162B4D] mb-4">Adjustment Details</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</Label>
-                  <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="h-9 text-sm font-medium text-[#162B4D]" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    Reason <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    value={formReason}
-                    onChange={(e) => setFormReason(e.target.value)}
-                    placeholder="Enter reason"
-                    className="h-9 text-sm font-medium text-[#162B4D]"
-                    list="inv-reason-list"
-                  />
-                  <datalist id="inv-reason-list">{REASONS.map((r) => <option key={r} value={r} />)}</datalist>
-                </div>
-                <div className="space-y-1.5 col-span-2">
-                  <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Notes</Label>
-                  <Input value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Write notes here..." className="h-9 text-sm text-gray-600" />
-                </div>
-              </div>
-            </div>
-
-            {/* Products section */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-bold text-[#162B4D]">Products</h2>
-                <span className="text-[11px] text-gray-400 font-medium">{formRows.filter(r => r.productId).length} / {formRows.length} selected</span>
-              </div>
-
-              <div className="space-y-3">
-                {formRows.map((row, idx) => {
-                  const isAdd = row.mode === "add";
-                  const dLeft = isAdd ? daysUntil(row.expiryDate) : null;
-                  const expTone = dLeft == null ? "text-gray-400"
-                    : dLeft < 0 ? "text-red-600"
-                    : dLeft <= 7 ? "text-amber-600"
-                    : "text-emerald-600";
-
-                  const prod = products.find((p) => p.id === row.productId);
-                  const prodBatches: Batch[] = prod?.batches ?? [];
-                  const activeBatches = prodBatches.filter(b => b.quantity > 0);
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`rounded-xl border transition-colors ${
-                        row.productId
-                          ? "border-gray-200 bg-white shadow-sm"
-                          : "border-dashed border-gray-200 bg-gray-50/50"
-                      }`}
-                    >
-                      {/* Row header */}
-                      <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
-                        <span className="w-5 h-5 rounded-full bg-[#364F9F]/10 text-[#364F9F] text-[11px] font-bold flex items-center justify-center flex-shrink-0">
-                          {idx + 1}
-                        </span>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                          {row.productId ? row.productName : "New Product Row"}
-                        </span>
-                        {row.productId && (
-                          <span className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${isAdd ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-                            {isAdd ? "ADD BATCH" : "REDUCE"}
-                          </span>
-                        )}
-                        {formRows.length > 1 && (
-                          <button onClick={() => removeRow(idx)} className="ml-auto text-gray-300 hover:text-red-500 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Row fields */}
-                      <div className="px-4 py-3">
-                        <div className="grid grid-cols-12 gap-3 items-start">
-                          {/* Product selector */}
-                          <div className="col-span-12 md:col-span-4 space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Product *</label>
-                            <ProductSelector
-                              row={row} idx={idx} allProducts={products} usedIds={usedIds}
-                              onSelect={selectProduct} onClear={clearProduct} onSearchChange={onSearchChange}
-                            />
-                            {row.productId && (
-                              <p className="text-[10px] text-gray-400 font-medium">
-                                {row.unit} · <span className="text-[#162B4D] font-bold">{row.quantityBefore}</span> available
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Mode */}
-                          <div className="col-span-6 md:col-span-2 space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mode</label>
-                            <Select value={row.mode} onValueChange={(v) => changeMode(idx, v as FormMode)}>
-                              <SelectTrigger className="h-9 text-sm font-semibold">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="add">
-                                  <span className="font-semibold text-emerald-700">+ Add Batch</span>
-                                </SelectItem>
-                                <SelectItem value="remove">
-                                  <span className="font-semibold text-red-700">– Reduce</span>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Quantity */}
-                          <div className="col-span-6 md:col-span-2 space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Quantity</label>
-                            <input
-                              type="number" min="0"
-                              value={isAdd ? row.addQuantity : row.removeQuantity}
-                              onChange={(e) => updateRow(idx, isAdd ? { addQuantity: e.target.value } : { removeQuantity: e.target.value })}
-                              placeholder="0"
-                              className="w-full h-9 px-3 text-sm font-bold text-[#162B4D] text-center border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
-                            />
-                          </div>
-
-                          {/* Conditional fields */}
-                          {isAdd ? (
-                            <>
-                              {/* Shelf Life */}
-                              <div className="col-span-6 md:col-span-2 space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Shelf Life (days)</label>
-                                <input
-                                  type="number" min="0"
-                                  value={row.shelfLifeDays}
-                                  onChange={(e) => setShelfLife(idx, e.target.value)}
-                                  placeholder="e.g. 7"
-                                  className="w-full h-9 px-3 text-sm font-medium text-center border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
-                                />
-                              </div>
-
-                              {/* Expiry Date */}
-                              <div className="col-span-6 md:col-span-2 space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Expiry Date</label>
-                                <input
-                                  type="date"
-                                  value={row.expiryDate}
-                                  onChange={(e) => setExpiryDate(idx, e.target.value)}
-                                  className={`w-full h-9 px-2 text-xs font-semibold border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] ${expTone}`}
-                                />
-                                {dLeft != null && (
-                                  <p className={`text-[10px] font-bold ${expTone}`}>
-                                    {dLeft < 0 ? `Expired ${Math.abs(dLeft)}d ago` : dLeft === 0 ? "Expires today" : `${dLeft}d left`}
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              {/* Batch selector for remove */}
-                              <div className="col-span-12 md:col-span-4 space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Batch</label>
-                                {activeBatches.length > 0 ? (
-                                  <BatchSelector
-                                    batches={prodBatches}
-                                    unit={row.unit}
-                                    selectedBatchId={row.selectedBatchId}
-                                    onSelect={(batchId) => updateRow(idx, { selectedBatchId: batchId })}
-                                  />
-                                ) : (
-                                  <div className="h-9 px-3 flex items-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
-                                    {row.productId ? "No active batches" : "Select product first"}
-                                  </div>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Batch number row for add mode */}
-                        {isAdd && row.productId && (
-                          <div className="mt-3 flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <Hash className="w-3.5 h-3.5 text-[#364F9F]" />
-                              <label className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Batch ID</label>
-                            </div>
-                            <input
-                              type="text"
-                              value={row.batchNumber}
-                              onChange={(e) => updateRow(idx, { batchNumber: e.target.value.toUpperCase() })}
-                              placeholder="Auto-generated"
-                              className="w-36 h-8 px-3 text-xs font-bold text-[#364F9F] border border-[#364F9F]/30 bg-[#364F9F]/5 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] uppercase tracking-wider"
-                            />
-                            <span className="text-[10px] text-gray-400">Auto-generated from product name · editable</span>
-                          </div>
-                        )}
-
-                        {/* Existing batches card */}
-                        {row.productId && activeBatches.length > 0 && (
-                          <ExistingBatchesCard batches={prodBatches} unit={row.unit} />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <button
-                  onClick={addRow}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#364F9F] hover:text-[#162B4D] transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Add another product
-                </button>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => setView("list")} className="font-semibold">Cancel</Button>
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-[#F05B4E] hover:bg-[#e04a3e] text-white font-semibold shadow-sm"
-                  >
-                    {saving ? "Saving..." : "Save Adjustment"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // ─── LIST VIEW ───────────────────────────────────────────────────────────────
   return (
     <>
       {headerSlot && createPortal(headerContent, headerSlot)}
-      <div className="space-y-5">
-        <div className="flex items-center justify-end">
-          <Button
-            onClick={openForm}
-            disabled={!selectedSubHubId}
-            className="bg-[#F05B4E] hover:bg-[#e04a3e] text-white font-semibold shadow-sm"
-          >
-            <Plus className="w-4 h-4 mr-1.5" /> New Adjustment
-          </Button>
-        </div>
-
-        {!selectedSubHubId ? (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#364F9F]/10 flex items-center justify-center">
-              <SlidersHorizontal className="w-5 h-5 text-[#364F9F]" />
+      <div className="space-y-6">
+        {/* Header meta row */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+          <div>
+            <h2 className="text-base font-bold text-[#162B4D] mb-4">Adjustment Details</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</Label>
+                <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="h-9 text-sm font-medium text-[#162B4D]" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Reason <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={formReason}
+                  onChange={(e) => setFormReason(e.target.value)}
+                  placeholder="Enter reason"
+                  className="h-9 text-sm font-medium text-[#162B4D]"
+                  list="inv-reason-list"
+                />
+                <datalist id="inv-reason-list">{REASONS.map((r) => <option key={r} value={r} />)}</datalist>
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Notes</Label>
+                <Input value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Write notes here..." className="h-9 text-sm text-gray-600" />
+              </div>
             </div>
-            <p className="text-sm font-bold text-[#162B4D]">Loading hub data...</p>
-            <p className="text-xs text-gray-400 mt-1 font-medium">Connecting to Mumbai · Thane inventory.</p>
           </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Reason</th>
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Items</th>
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {loading ? (
-                    <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-gray-400">Loading...</td></tr>
-                  ) : adjustments.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-5 py-12 text-center">
-                        <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                          <PackageOpen className="w-5 h-5 text-gray-400" />
+
+          {/* Products section */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-[#162B4D]">Products</h2>
+              <span className="text-[11px] text-gray-400 font-medium">{formRows.filter(r => r.productId).length} / {formRows.length} selected</span>
+            </div>
+
+            <div className="space-y-3">
+              {formRows.map((row, idx) => {
+                const isAdd = row.mode === "add";
+                const isAddExisting = row.mode === "add_existing";
+                const isAddAny = isAdd || isAddExisting;
+                const dLeft = isAdd ? daysUntil(row.expiryDate) : null;
+                const expTone = dLeft == null ? "text-gray-400"
+                  : dLeft < 0 ? "text-red-600"
+                  : dLeft <= 7 ? "text-amber-600"
+                  : "text-emerald-600";
+
+                const prod = products.find((p) => p.id === row.productId);
+                const prodBatches: Batch[] = prod?.batches ?? [];
+                const activeBatches = prodBatches.filter(b => b.quantity > 0);
+
+                const badgeClass = isAdd
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : isAddExisting
+                  ? "bg-[#364F9F]/10 text-[#364F9F] border border-[#364F9F]/25"
+                  : "bg-red-50 text-red-700 border border-red-200";
+                const badgeLabel = isAdd ? "ADD BATCH" : isAddExisting ? "ADD TO BATCH" : "REDUCE";
+
+                return (
+                  <div
+                    key={idx}
+                    className={`rounded-xl border transition-colors ${
+                      row.productId
+                        ? "border-gray-200 bg-white shadow-sm"
+                        : "border-dashed border-gray-200 bg-gray-50/50"
+                    }`}
+                  >
+                    {/* Row header */}
+                    <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
+                      <span className="w-5 h-5 rounded-full bg-[#364F9F]/10 text-[#364F9F] text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        {row.productId ? row.productName : "New Product Row"}
+                      </span>
+                      {row.productId && (
+                        <span className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+                          {badgeLabel}
+                        </span>
+                      )}
+                      {formRows.length > 1 && (
+                        <button onClick={() => removeRow(idx)} className="ml-auto text-gray-300 hover:text-red-500 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Row fields */}
+                    <div className="px-4 py-3">
+                      <div className="grid grid-cols-12 gap-3 items-start">
+                        {/* Product selector */}
+                        <div className="col-span-12 md:col-span-4 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Product *</label>
+                          <ProductSelector
+                            row={row} idx={idx} allProducts={products} usedIds={usedIds}
+                            onSelect={selectProduct} onClear={clearProduct} onSearchChange={onSearchChange}
+                          />
+                          {row.productId && (
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {row.unit} · <span className="text-[#162B4D] font-bold">{row.quantityBefore}</span> available
+                            </p>
+                          )}
                         </div>
-                        <p className="text-sm font-semibold text-gray-500">No adjustments yet</p>
-                        <p className="text-xs text-gray-400 mt-1">Start by creating a new adjustment</p>
-                      </td>
-                    </tr>
-                  ) : pagedAdjustments.pageItems.map((a) => (
-                    <tr key={a._id} className="hover:bg-gray-50/50 align-top transition-colors">
-                      <td className="px-5 py-3.5 text-gray-500 text-xs font-medium whitespace-nowrap">
-                        {formatDateTime(a.createdAt || a.date)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm font-bold text-[#162B4D]">{a.reason}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex flex-col gap-1.5">
-                          {a.items.map((it, i) => (
-                            <div key={i} className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-bold text-[#162B4D]">{it.productName}</span>
-                              <span className="text-[11px] text-gray-400 font-medium">
-                                {it.quantityBefore} → {it.newQuantity} {it.unit}
-                              </span>
-                              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
-                                it.quantityAdjusted > 0
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : it.quantityAdjusted < 0
-                                  ? "bg-red-50 text-red-700"
-                                  : "bg-gray-100 text-gray-500"
-                              }`}>
-                                {it.quantityAdjusted > 0 ? "+" : ""}{it.quantityAdjusted}
-                              </span>
-                              {it.batch?.batchNumber && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#364F9F]/8 text-[#364F9F] border border-[#364F9F]/20">
-                                  {it.batch.batchNumber}
-                                  {it.batch.expiryDate && ` · exp ${formatExpiry(it.batch.expiryDate as any)}`}
-                                </span>
+
+                        {/* Mode */}
+                        <div className="col-span-6 md:col-span-2 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mode</label>
+                          <Select value={row.mode} onValueChange={(v) => changeMode(idx, v as FormMode)}>
+                            <SelectTrigger className="h-9 text-sm font-semibold">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="add">
+                                <span className="font-semibold text-emerald-700">+ New Batch</span>
+                              </SelectItem>
+                              <SelectItem value="add_existing">
+                                <span className="font-semibold text-[#364F9F]">+ Add to Batch</span>
+                              </SelectItem>
+                              <SelectItem value="remove">
+                                <span className="font-semibold text-red-700">– Reduce</span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="col-span-6 md:col-span-2 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Quantity</label>
+                          <input
+                            type="number" min="0"
+                            value={isAddAny ? row.addQuantity : row.removeQuantity}
+                            onChange={(e) => updateRow(idx, isAddAny ? { addQuantity: e.target.value } : { removeQuantity: e.target.value })}
+                            placeholder="0"
+                            className="w-full h-9 px-3 text-sm font-bold text-[#162B4D] text-center border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
+                          />
+                        </div>
+
+                        {/* Conditional fields */}
+                        {isAdd ? (
+                          <>
+                            {/* Shelf Life */}
+                            <div className="col-span-6 md:col-span-2 space-y-1">
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Shelf Life (days)</label>
+                              <input
+                                type="number" min="0"
+                                value={row.shelfLifeDays}
+                                onChange={(e) => setShelfLife(idx, e.target.value)}
+                                placeholder="e.g. 7"
+                                className="w-full h-9 px-3 text-sm font-medium text-center border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
+                              />
+                            </div>
+                            {/* Expiry Date */}
+                            <div className="col-span-6 md:col-span-2 space-y-1">
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Expiry Date</label>
+                              <input
+                                type="date"
+                                value={row.expiryDate}
+                                onChange={(e) => setExpiryDate(idx, e.target.value)}
+                                className={`w-full h-9 px-2 text-xs font-semibold border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] ${expTone}`}
+                              />
+                              {dLeft != null && (
+                                <p className={`text-[10px] font-bold ${expTone}`}>
+                                  {dLeft < 0 ? `Expired ${Math.abs(dLeft)}d ago` : dLeft === 0 ? "Expires today" : `${dLeft}d left`}
+                                </p>
                               )}
                             </div>
-                          ))}
+                          </>
+                        ) : (isAddExisting || row.mode === "remove") ? (
+                          <div className="col-span-12 md:col-span-4 space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                              {isAddExisting ? "Select Batch to Add Into" : "Select Batch"}
+                            </label>
+                            {activeBatches.length > 0 ? (
+                              <BatchSelector
+                                batches={prodBatches}
+                                unit={row.unit}
+                                selectedBatchId={row.selectedBatchId}
+                                onSelect={(batchId) => updateRow(idx, { selectedBatchId: batchId })}
+                                mode={isAddExisting ? "add_existing" : "remove"}
+                              />
+                            ) : (
+                              <div className="h-9 px-3 flex items-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
+                                {row.productId ? "No active batches" : "Select product first"}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Batch number row for new batch mode only */}
+                      {isAdd && row.productId && (
+                        <div className="mt-3 flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <Hash className="w-3.5 h-3.5 text-[#364F9F]" />
+                            <label className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Batch ID</label>
+                          </div>
+                          <input
+                            type="text"
+                            value={row.batchNumber}
+                            onChange={(e) => updateRow(idx, { batchNumber: e.target.value.toUpperCase() })}
+                            placeholder="Auto-generated"
+                            className="w-36 h-8 px-3 text-xs font-bold text-[#364F9F] border border-[#364F9F]/30 bg-[#364F9F]/5 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] uppercase tracking-wider"
+                          />
+                          <span className="text-[10px] text-gray-400">Auto-generated from product name · editable</span>
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-gray-500 font-medium">{a.notes || <span className="text-gray-300">—</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <PaginationBar
-                page={pagedAdjustments.page}
-                pages={pagedAdjustments.pages}
-                total={pagedAdjustments.total}
-                onChange={pagedAdjustments.setPage}
-                label="adjustments"
-              />
+                      )}
+
+                      {/* Existing batches collapsible */}
+                      {row.productId && activeBatches.length > 0 && (
+                        <ExistingBatchesCard batches={prodBatches} unit={row.unit} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                onClick={addRow}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#364F9F] hover:text-[#162B4D] transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add another product
+              </button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={resetForm} className="font-semibold">Reset</Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || !selectedSubHubId}
+                  className="bg-[#F05B4E] hover:bg-[#e04a3e] text-white font-semibold shadow-sm"
+                >
+                  {saving ? "Saving..." : "Save Adjustment"}
+                </Button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </>
   );
