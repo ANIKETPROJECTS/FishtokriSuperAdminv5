@@ -796,7 +796,7 @@ export default function Orders() {
   const editIdFromUrl = isEditPage ? location.replace("/orders/edit/", "") : "";
   const isCreatePage = location === "/orders/new" || location.endsWith("/orders/new") || isEditPage;
 
-  const [activeTab, setActiveTab] = useState<"current" | "history" | "all" | "invoices">("current");
+  const [activeTab, setActiveTab] = useState<"current" | "otherday" | "history" | "all" | "invoices">("current");
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
 
   // Filters
@@ -823,7 +823,7 @@ export default function Orders() {
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState<Record<string, number>>({});
-  const [statsTotals, setStatsTotals] = useState<{ total?: number; currentTotal?: number; historyTotal?: number }>({});
+  const [statsTotals, setStatsTotals] = useState<{ total?: number; currentTotal?: number; historyTotal?: number; todayTotal?: number; otherDayTotal?: number }>({});
 
   // Detail modal
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -1550,7 +1550,7 @@ export default function Orders() {
 
   const effectiveStatus = useMemo(() => {
     if (statusFilter) return statusFilter;
-    if (activeTab === "current") return ACTIVE_STATUSES.join(",");
+    if (activeTab === "current" || activeTab === "otherday") return ACTIVE_STATUSES.join(",");
     if (activeTab === "history") return HISTORY_STATUSES.join(",");
     if (activeTab === "invoices") return HISTORY_STATUSES.join(",");
     return "";
@@ -1566,9 +1566,15 @@ export default function Orders() {
         page: String(page),
         limit: String(LIMIT),
       });
-      if (activeTab === "current" || activeTab === "history" || activeTab === "invoices") {
-        params.set("tab", activeTab === "invoices" ? "history" : activeTab);
+      if (activeTab === "current" || activeTab === "otherday" || activeTab === "history" || activeTab === "invoices") {
+        params.set("tab",
+          activeTab === "invoices" ? "history" :
+          activeTab === "otherday" ? "current" :
+          activeTab
+        );
       }
+      if (activeTab === "current") params.set("deliveryDateFilter", "today");
+      else if (activeTab === "otherday") params.set("deliveryDateFilter", "other");
       if (statusFilter) {
         params.set("status", statusFilter);
       }
@@ -1622,6 +1628,8 @@ export default function Orders() {
         total: data.total,
         currentTotal: data.currentTotal,
         historyTotal: data.historyTotal,
+        todayTotal: data.todayTotal,
+        otherDayTotal: data.otherDayTotal,
       });
     } catch { }
   }, []);
@@ -2026,8 +2034,11 @@ export default function Orders() {
   const totalHistory = statsTotals.historyTotal ?? (HISTORY_STATUSES.reduce((s, k) => s + (statsData[k] ?? 0), 0) + (statsData.takeaway ?? 0));
 
   const invoiceCount = (statsData["delivered"] ?? 0) + (statsData["takeaway"] ?? 0);
+  const totalToday = statsTotals.todayTotal ?? totalActive;
+  const totalOtherDay = statsTotals.otherDayTotal ?? 0;
   const TABS = [
-    { key: "current" as const, label: "Current Orders", count: totalActive, icon: Clock, color: "text-blue-600" },
+    { key: "current" as const, label: "Current Orders", count: totalToday, icon: Clock, color: "text-blue-600" },
+    { key: "otherday" as const, label: "Other Day Orders", count: totalOtherDay, icon: Calendar, color: "text-orange-600" },
     { key: "history" as const, label: "History", count: totalHistory, icon: CheckCircle2, color: "text-green-600" },
     { key: "all" as const, label: "All Orders", count: totalAll, icon: ClipboardList, color: "text-gray-600" },
     { key: "invoices" as const, label: "Order Invoices", count: invoiceCount, icon: FileText, color: "text-violet-600" },

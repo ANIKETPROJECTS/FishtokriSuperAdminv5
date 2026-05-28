@@ -269,6 +269,16 @@ function getTodayIST(): string {
   return `${y}${m}${d}`;
 }
 
+/** Returns today's date in YYYY-MM-DD format (IST), matching the deliveryDate field. */
+function getTodayISODate(): string {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const y = ist.getUTCFullYear();
+  const m = String(ist.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(ist.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * Atomically generates the next sequential FishTokri order ID for today.
  * Format: #FTSYYYYMMDD{N}  e.g. #FTS202605261, #FTS202605262 …
@@ -303,6 +313,7 @@ router.get("/", async (req: ScopedRequest, res) => {
       from = "",
       to = "",
       assignedTo = "",
+      deliveryDateFilter = "",
     } = req.query as Record<string, string>;
 
     const filter: any = {};
@@ -378,6 +389,31 @@ router.get("/", async (req: ScopedRequest, res) => {
       if (to) filter.createdAt.$lte = new Date(to);
     }
 
+    // deliveryDateFilter: "today" = only today's orders (or no date set),
+    //                     "other" = orders scheduled for a different day
+    if (deliveryDateFilter === "today" || deliveryDateFilter === "other") {
+      const todayISO = getTodayISODate();
+      if (deliveryDateFilter === "today") {
+        const todayClause = {
+          $or: [
+            { deliveryDate: todayISO },
+            { deliveryDate: null },
+            { deliveryDate: "" },
+            { deliveryDate: { $exists: false } },
+          ],
+        };
+        if (!filter.$and) filter.$and = [];
+        if (filter.$or) {
+          filter.$and.unshift({ $or: filter.$or });
+          delete filter.$or;
+        }
+        filter.$and.push(todayClause);
+      } else {
+        // "other": deliveryDate is set, non-null, non-empty, and not today
+        filter.deliveryDate = { $exists: true, $nin: [null, "", todayISO] };
+      }
+    }
+
     const sortDir = order === "asc" ? 1 : -1;
     const sortObj: any = {};
     const allowedSorts = ["createdAt", "customerName", "status"];
@@ -417,7 +453,7 @@ router.get("/stats", async (req: ScopedRequest, res) => {
     const conn = await getOrdersDb();
     const scopeClause = scopeOrderFilter(req);
     if (scopeClause === null) {
-      res.json({ stats: {}, rawStats: {}, total: 0, currentTotal: 0, historyTotal: 0 });
+      res.json({ stats: {}, rawStats: {}, total: 0, currentTotal: 0, historyTotal: 0, todayTotal: 0, otherDayTotal: 0 });
       return;
     }
     const pipeline: any[] = [];
@@ -460,7 +496,30 @@ router.get("/stats", async (req: ScopedRequest, res) => {
     const currentTotal = ACTIVE.reduce((s, k) => s + (stats[k] ?? 0), 0);
     const historyTotal = HISTORY.reduce((s, k) => s + (stats[k] ?? 0), 0) + takeawayActive;
 
-    res.json({ stats, rawStats, total, currentTotal, historyTotal });
+    // Today / other-day counts for the new "Other Day Orders" tab
+    const todayISO = getTodayISODate();
+    const activeNonTakeaway = {
+      ...scopeClause,
+      status: { $in: ACTIVE },
+      deliveryType: { $ne: "takeaway" },
+    };
+    const [todayTotal, otherDayTotal] = await Promise.all([
+      conn.db.collection(COLLECTION).countDocuments({
+        ...activeNonTakeaway,
+        $or: [
+          { deliveryDate: todayISO },
+          { deliveryDate: null },
+          { deliveryDate: "" },
+          { deliveryDate: { $exists: false } },
+        ],
+      }),
+      conn.db.collection(COLLECTION).countDocuments({
+        ...activeNonTakeaway,
+        deliveryDate: { $exists: true, $nin: [null, "", todayISO] },
+      }),
+    ]);
+
+    res.json({ stats, rawStats, total, currentTotal, historyTotal, todayTotal, otherDayTotal });
   } catch (err) {
     req.log.error({ err }, "Failed to get order stats");
     res.status(500).json({ error: "InternalError", message: "Failed to fetch order stats" });
