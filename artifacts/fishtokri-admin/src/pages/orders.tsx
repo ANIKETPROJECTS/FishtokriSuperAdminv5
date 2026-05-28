@@ -3326,7 +3326,7 @@ export default function Orders() {
                       Order Details
                     </SheetTitle>
                     <p className="text-2xl font-extrabold text-[#364F9F] tracking-tight leading-none">
-                      {formatOrderId(selectedOrder, dailySeqMap.get(String(selectedOrder._id)))}
+                      {selectedOrder.orderId || formatOrderId(selectedOrder, dailySeqMap.get(String(selectedOrder._id)))}
                     </p>
                     <p className="text-sm font-medium text-black mt-2">Placed: {formatDate(selectedOrder.createdAt)}</p>
                   </div>
