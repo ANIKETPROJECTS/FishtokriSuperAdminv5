@@ -3054,12 +3054,10 @@ export default function Orders() {
                         type="button"
                         disabled={!isOutstationNeeded}
                         onClick={() => setIsOutstationDelivery((v) => !v)}
-                        className={`flex items-center gap-1.5 text-[10px] font-semibold transition-all select-none ${!isOutstationNeeded ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all select-none ${!isOutstationNeeded ? "opacity-35 cursor-not-allowed border-gray-200 text-gray-400 bg-white" : isOutstationDelivery ? "bg-orange-500 border-orange-500 text-white cursor-pointer" : "bg-white border-gray-300 text-gray-500 cursor-pointer hover:border-orange-400"}`}
                       >
-                        <span className={`relative inline-flex w-7 h-4 rounded-full transition-colors duration-200 ${isOutstationDelivery ? "bg-orange-500" : "bg-gray-300"}`}>
-                          <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-200 ${isOutstationDelivery ? "translate-x-3" : "translate-x-0"}`} />
-                        </span>
-                        <span className={isOutstationDelivery ? "text-orange-600" : "text-gray-400"}>Outstation</span>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOutstationDelivery ? "bg-white" : "bg-gray-400"}`} />
+                        Outstation
                       </button>
                       {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
                         <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
