@@ -1,0 +1,64 @@
+root@srv1708834:/var/www/fishtokri# npm --prefix artifacts/api-server run build
+
+> @workspace/api-server@0.0.0 build
+> node ./build.mjs
+
+
+  dist/index.mjs                       5.5mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.1kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                  10.1mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           203.9kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 524ms
+root@srv1708834:/var/www/fishtokri# pm2 start ecosystem.config.cjs
+[PM2][WARN] Applications fishtokri-api not running, starting...
+[PM2] App [fishtokri-api] launched (1 instances)
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ fishtokri-api    │ default     │ 0.0.0   │ cluster │ 24442    │ 0s     │ 0    │ online    │ 0%       │ 41.1mb   │ root     │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+root@srv1708834:/var/www/fishtokri# sudo ufw allow 3015/tcp
+Rules updated
+Rules updated (v6)
+root@srv1708834:/var/www/fishtokri# pm2 list
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ fishtokri-api    │ default     │ 0.0.0   │ cluster │ 24442    │ 48s    │ 0    │ online    │ 0%       │ 157.1mb  │ root     │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+root@srv1708834:/var/www/fishtokri# pm2 log 0
+[TAILING] Tailing last 15 lines for [0] process (change the value with --lines option)
+/root/.pm2/logs/fishtokri-api-out-0.log last 15 lines:
+0|fishtokr | {"level":30,"time":1780035969533,"pid":24169,"hostname":"srv1708834","msg":"Connected to MongoDB (fishtokri_admin)"}
+0|fishtokr | {"level":30,"time":1780035969539,"pid":24169,"hostname":"srv1708834","port":8080,"msg":"Server listening"}
+0|fishtokr | {"level":30,"time":1780035984652,"pid":24169,"hostname":"srv1708834","dbName":"orders","msg":"Connected to sub hub DB"}
+0|fishtokr | {"level":30,"time":1780035984657,"pid":24169,"hostname":"srv1708834","candidateCount":0,"undeductedCount":0,"statuses":[],"msg":"runInventoryBackgroundDeduction: scan complete"}
+0|fishtokr | {"level":30,"time":1780036020060,"pid":24169,"hostname":"srv1708834","req":{"id":1,"method":"GET","url":"/"},"res":{"statusCode":404},"responseTime":3,"msg":"request completed"}
+0|fishtokr | {"level":30,"time":1780036029544,"pid":24169,"hostname":"srv1708834","candidateCount":0,"undeductedCount":0,"statuses":[],"msg":"runInventoryBackgroundDeduction: scan complete"}
+0|fishtokr | {"level":30,"time":1780036089544,"pid":24169,"hostname":"srv1708834","candidateCount":0,"undeductedCount":0,"statuses":[],"msg":"runInventoryBackgroundDeduction: scan complete"}
+0|fishtokr | {"level":30,"time":1780036149544,"pid":24169,"hostname":"srv1708834","candidateCount":0,"undeductedCount":0,"statuses":[],"msg":"runInventoryBackgroundDeduction: scan complete"}
+0|fishtokr | {"level":30,"time":1780036150790,"pid":24169,"hostname":"srv1708834","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":404},"responseTime":1,"msg":"request completed"}
+0|fishtokr | {"level":30,"time":1780036209544,"pid":24169,"hostname":"srv1708834","candidateCount":0,"undeductedCount":0,"statuses":[],"msg":"runInventoryBackgroundDeduction: scan complete"}
+
+/root/.pm2/logs/fishtokri-api-error-0.log last 15 lines:
+0|fishtokr | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+0|fishtokr | TypeError: Missing parameter name at index 1: *; visit https://git.new/pathToRegexpError for info
+0|fishtokr |     at name (/var/www/fishtokri/node_modules/.pnpm/path-to-regexp@8.3.0/node_modules/path-to-regexp/src/index.ts:225:13)
+0|fishtokr |     at parse (/var/www/fishtokri/node_modules/.pnpm/path-to-regexp@8.3.0/node_modules/path-to-regexp/src/index.ts:242:62)
+0|fishtokr |     at pathToRegexp (/var/www/fishtokri/node_modules/.pnpm/path-to-regexp@8.3.0/node_modules/path-to-regexp/src/index.ts:480:54)
+0|fishtokr |     at Object.match (/var/www/fishtokri/node_modules/.pnpm/path-to-regexp@8.3.0/node_modules/path-to-regexp/src/index.ts:438:28)
+0|fishtokr |     at matcher (/var/www/fishtokri/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:86:23)
+0|fishtokr |     at new Layer (/var/www/fishtokri/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:93:62)
+0|fishtokr |     at Function.route (/var/www/fishtokri/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:428:17)
+0|fishtokr |     at Function.route (/var/www/fishtokri/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:257:22)
+0|fishtokr |     at Function.app2.<computed> (/var/www/fishtokri/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:478:22)
+0|fishtokr |     at <anonymous> (/var/www/fishtokri/artifacts/api-server/src/app.ts:43:9)
+
+

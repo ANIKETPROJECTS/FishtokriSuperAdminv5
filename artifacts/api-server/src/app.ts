@@ -40,7 +40,8 @@ if (process.env["NODE_ENV"] === "production") {
   if (fs.existsSync(frontendDist)) {
     app.use(express.static(frontendDist));
     // All non-API routes fall through to React's index.html for client-side routing.
-    app.get("*", (_req, res) => {
+    // Express 5 requires explicit wildcard syntax — "/*" is invalid, use a catch-all middleware instead.
+    app.use((_req, res) => {
       res.sendFile(path.join(frontendDist, "index.html"));
     });
     logger.info({ frontendDist }, "Serving frontend static files");
