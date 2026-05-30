@@ -453,10 +453,14 @@ router.get("/", async (req: ScopedRequest, res) => {
     if (deliveryType) filter.deliveryType = deliveryType;
     if (assignedTo) filter.assignedDeliveryPersonId = assignedTo;
 
+    // Date range filter — matches on deliveryDate (YYYY-MM-DD string).
+    // Orders with no deliveryDate set are excluded when a range is active,
+    // since they have no scheduled delivery date to match against.
     if (from || to) {
-      filter.createdAt = {};
-      if (from) filter.createdAt.$gte = new Date(from);
-      if (to) filter.createdAt.$lte = new Date(to);
+      const dateRangeClause: any = {};
+      if (from) dateRangeClause.$gte = from; // string comparison works for YYYY-MM-DD
+      if (to) dateRangeClause.$lte = to;
+      filter.deliveryDate = dateRangeClause;
     }
 
     // deliveryDateFilter: "today"    = today, past, or no date set (Current Orders)

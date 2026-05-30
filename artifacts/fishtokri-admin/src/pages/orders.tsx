@@ -1654,8 +1654,9 @@ export default function Orders() {
         params.set("status", statusFilter);
       }
       if (deliveryTypeFilter) params.set("deliveryType", deliveryTypeFilter);
-      if (dateFrom) params.set("from", dateFrom);
-      if (dateTo) params.set("to", dateTo);
+      // Only send date-range params when on the All Orders tab.
+      if (activeTab === "all" && dateFrom) params.set("from", dateFrom);
+      if (activeTab === "all" && dateTo) params.set("to", dateTo);
       if (subHubFilter) params.set("subHubId", subHubFilter);
 
       const data = await apiFetch(`/api/orders?${params}`);
@@ -1712,6 +1713,15 @@ export default function Orders() {
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { setPage(1); }, [activeTab, search, statusFilter, deliveryTypeFilter, dateFrom, dateTo, sortField, sortDir, subHubFilter]);
   useEffect(() => { load(); }, [load]);
+
+  // Clear the delivery-date range filter when leaving the "All Orders" tab —
+  // it only applies there, so stale values shouldn't bleed into other tabs.
+  useEffect(() => {
+    if (activeTab !== "all") {
+      setDateFrom("");
+      setDateTo("");
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const id = setInterval(() => { load(true); loadStats(); }, 5000);
@@ -2277,41 +2287,44 @@ export default function Orders() {
             </SelectContent>
           </Select>
 
-          {/* Date range picker */}
-          <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-            <PopoverTrigger asChild>
-              <button className={`flex-shrink-0 flex items-center gap-2 h-9 px-4 rounded-full border text-sm font-medium transition-colors ${dateFrom || dateTo ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-gray-200 text-black hover:border-gray-300"}`}>
-                <Calendar className="w-3.5 h-3.5" />
-                {dateFrom && dateTo
-                  ? `${dateFrom} – ${dateTo}`
-                  : dateFrom
-                  ? dateFrom
-                  : "Date"}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="p-3 w-auto" align="start">
-              <DayPicker
-                mode="range"
-                selected={{
-                  from: dateFrom ? new Date(dateFrom + "T00:00:00") : undefined,
-                  to: dateTo ? new Date(dateTo + "T00:00:00") : undefined,
-                }}
-                onSelect={(range) => {
-                  setDateFrom(range?.from ? format(range.from, "yyyy-MM-dd") : "");
-                  setDateTo(range?.to ? format(range.to, "yyyy-MM-dd") : "");
-                  if (range?.to) setShowDatePicker(false);
-                }}
-              />
-              {(dateFrom || dateTo) && (
-                <button
-                  onClick={() => { setDateFrom(""); setDateTo(""); setShowDatePicker(false); }}
-                  className="mt-1 w-full text-xs text-red-500 hover:text-red-600 font-medium py-1 rounded hover:bg-red-50 transition-colors"
-                >
-                  Clear dates
+          {/* Date range picker — only shown on the All Orders tab */}
+          {activeTab === "all" && (
+            <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+              <PopoverTrigger asChild>
+                <button className={`flex-shrink-0 flex items-center gap-2 h-9 px-4 rounded-full border text-sm font-medium transition-colors ${dateFrom || dateTo ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-gray-200 text-black hover:border-gray-300"}`}>
+                  <Calendar className="w-3.5 h-3.5" />
+                  {dateFrom && dateTo
+                    ? `${dateFrom} – ${dateTo}`
+                    : dateFrom
+                    ? dateFrom
+                    : "Delivery Date"}
                 </button>
-              )}
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent className="p-3 w-auto" align="start">
+                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Filter by Delivery Date</p>
+                <DayPicker
+                  mode="range"
+                  selected={{
+                    from: dateFrom ? new Date(dateFrom + "T00:00:00") : undefined,
+                    to: dateTo ? new Date(dateTo + "T00:00:00") : undefined,
+                  }}
+                  onSelect={(range) => {
+                    setDateFrom(range?.from ? format(range.from, "yyyy-MM-dd") : "");
+                    setDateTo(range?.to ? format(range.to, "yyyy-MM-dd") : "");
+                    if (range?.to) setShowDatePicker(false);
+                  }}
+                />
+                {(dateFrom || dateTo) && (
+                  <button
+                    onClick={() => { setDateFrom(""); setDateTo(""); setShowDatePicker(false); }}
+                    className="mt-1 w-full text-xs text-red-500 hover:text-red-600 font-medium py-1 rounded hover:bg-red-50 transition-colors"
+                  >
+                    Clear dates
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
 
           {/* Clear all filters */}
           {hasFilters && (
