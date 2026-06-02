@@ -56,7 +56,12 @@ function loadQzScript(): Promise<void> {
 }
 
 // ─── SECURITY SETUP ───────────────────────────────────────────────────────────
+let _securitySetup = false;
+
 function setupSecurity(): void {
+  if (_securitySetup) return;
+  _securitySetup = true;
+
   const qz = window.qz;
 
   qz.security.setCertificatePromise((resolve: (cert: string) => void, reject: (err: unknown) => void) => {
@@ -69,7 +74,7 @@ function setupSecurity(): void {
       .catch(reject);
   });
 
-  qz.security.setSignatureAlgorithm("SHA256");
+  qz.security.setSignatureAlgorithm("SHA512");
 
   qz.security.setSignaturePromise((toSign: string) => {
     return (resolve: (sig: string) => void, reject: (err: unknown) => void) => {

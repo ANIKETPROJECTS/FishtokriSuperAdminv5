@@ -42,7 +42,7 @@ router.post("/sign-message", async (req, res) => {
 
   try {
     const normalizedKey = normalizePem(privateKey);
-    const signer = createSign("SHA256");
+    const signer = createSign("SHA512");
     signer.update(message);
     const signature = signer.sign({ key: normalizedKey, dsaEncoding: "der" }, "base64");
     res.type("text/plain").send(signature);
