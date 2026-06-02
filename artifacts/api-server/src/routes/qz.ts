@@ -3,6 +3,18 @@ import { createSign } from "node:crypto";
 
 const router = Router();
 
+function normalizePem(raw: string): string {
+  const typeMatch = raw.match(/-----BEGIN (.+?)-----/);
+  if (!typeMatch) throw new Error("Not a valid PEM string");
+  const type = typeMatch[1];
+  const b64 = raw
+    .replace(/-----BEGIN .+?-----/g, "")
+    .replace(/-----END .+?-----/g, "")
+    .replace(/\s+/g, "");
+  const lines = b64.match(/.{1,64}/g) ?? [];
+  return `-----BEGIN ${type}-----\n${lines.join("\n")}\n-----END ${type}-----`;
+}
+
 router.get("/qz-certificate", (_req, res) => {
   const cert = process.env.QZ_CERTIFICATE;
   if (!cert) {
@@ -23,9 +35,10 @@ router.post("/sign-message", async (req, res) => {
     typeof req.body === "string" ? req.body : JSON.stringify(req.body);
 
   try {
+    const normalizedKey = normalizePem(privateKey);
     const signer = createSign("SHA256");
     signer.update(message);
-    const signature = signer.sign(privateKey, "base64");
+    const signature = signer.sign(normalizedKey, "base64");
     res.type("text/plain").send(signature);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
