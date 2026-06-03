@@ -64,6 +64,24 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const SOLID_STATUS: Record<string, { label: string; bg: string }> = {
+  pending:          { label: "Pending",          bg: "bg-amber-500" },
+  confirmed:        { label: "Confirmed",        bg: "bg-[#1A56DB]" },
+  out_for_delivery: { label: "Out for Delivery", bg: "bg-indigo-600" },
+  delivered:        { label: "Delivered",        bg: "bg-green-600" },
+  cancelled:        { label: "Cancelled",        bg: "bg-red-500" },
+  takeaway:         { label: "Takeaway",         bg: "bg-emerald-600" },
+};
+
+function SolidStatusBadge({ status }: { status: string }) {
+  const cfg = SOLID_STATUS[status] ?? { label: status, bg: "bg-gray-500" };
+  return (
+    <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-lg ${cfg.bg} text-white tracking-wide`}>
+      {cfg.label}
+    </span>
+  );
+}
+
 function formatDate(d: any) {
   if (!d) return "—";
   return new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -103,7 +121,7 @@ function buildAddressLines(o: any): string[] {
   return lines;
 }
 
-// ─── ORDER DETAIL DIALOG ──────────────────────────────────────────────────────
+// ─── ORDER DETAIL DIALOG (full-screen) ────────────────────────────────────────
 
 function OrderDetailDialog({
   order,
@@ -131,149 +149,227 @@ function OrderDetailDialog({
     "";
   const isTakeaway = order?.deliveryType === "takeaway" || order?.status === "takeaway";
   const nextStatuses = (STATUS_CONFIG[order.status]?.next ?? []).filter((s) => STATUS_CONFIG[s]);
+  const displayId = order.orderId || ("#" + String(order._id).slice(-6).toUpperCase());
 
-  return (
-    <Dialog open={!!order} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-[#162B4D] flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4 text-orange-500" /> Order #{String(order._id).slice(-6).toUpperCase()}
-          </DialogTitle>
-        </DialogHeader>
+  return createPortal(
+    <div className="fixed inset-0 z-[200] bg-white flex flex-col">
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3 px-4 h-14 border-b border-black/8 flex-shrink-0 bg-white">
+        <button
+          onClick={onClose}
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-black/5 hover:bg-black/10 flex-shrink-0"
+        >
+          <X className="w-5 h-5 text-black" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-bold text-black leading-tight">Order Details</p>
+          <p className="text-xs font-mono font-bold text-black/40 leading-tight">{displayId}</p>
+        </div>
+        <SolidStatusBadge status={order.status} />
+      </div>
 
-        <div className="space-y-3 pt-1 text-sm">
-          {/* Header strip */}
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <StatusBadge status={order.status} />
-              {isTakeaway && order.status !== "takeaway" && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border text-emerald-600 bg-emerald-50 border-emerald-200">
-                  <Store className="w-3 h-3" /> Takeaway
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] text-gray-400">Created {formatDate(order.createdAt)}</span>
+      {/* ── Scrollable body ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-4 pb-6">
+
+          {/* Date + takeaway tag */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-black/50">{formatDate(order.createdAt)}</span>
+            {isTakeaway && order.status !== "takeaway" && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-600 text-white">
+                Takeaway
+              </span>
+            )}
           </div>
 
-          {/* Customer */}
-          <div className="bg-gray-50 rounded-xl p-3 space-y-1">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Customer</p>
-            <div className="flex items-center gap-2"><User className="w-4 h-4 text-gray-400" /><span className="font-semibold text-[#162B4D]">{order.customerName || "—"}</span></div>
-            {order.phone && <div className="flex items-center gap-2 text-xs text-gray-600"><Phone className="w-3.5 h-3.5 text-gray-400" /><a href={`tel:${order.phone}`} className="hover:underline">{order.phone}</a></div>}
-            {order.email && <div className="flex items-center gap-2 text-xs text-gray-600"><Mail className="w-3.5 h-3.5 text-gray-400" />{order.email}</div>}
+          {/* ── Customer ── */}
+          <div className="bg-black/[0.03] rounded-2xl p-4 space-y-3">
+            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest">Customer</p>
+            <p className="text-base font-bold text-black">{order.customerName || "—"}</p>
+            {order.phone && (
+              <a href={`tel:${order.phone}`} className="flex items-center gap-2.5">
+                <img src="/icon-phone.png" alt="Phone" className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm font-semibold text-black">{order.phone}</span>
+              </a>
+            )}
+            {order.email && (
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-black/40 flex-shrink-0" />
+                <span className="text-sm text-black">{order.email}</span>
+              </div>
+            )}
           </div>
 
-          {/* Delivery / Pickup */}
+          {/* ── Delivery Address / Pickup ── */}
           {isTakeaway ? (
-            <div className="bg-emerald-50/50 rounded-xl p-3 space-y-1 border border-emerald-100">
-              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide flex items-center gap-1"><Store className="w-3 h-3" /> Pickup from Hub</p>
-              <p className="text-xs text-[#162B4D] font-semibold">{order.subHubName || order.pickupLocation || "—"}</p>
-              {order.superHubName && <p className="text-[11px] text-gray-500">{order.superHubName}</p>}
+            <div className="bg-emerald-50 rounded-2xl p-4 space-y-1 border border-emerald-100">
+              <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Pickup from Hub</p>
+              <p className="text-sm font-bold text-black">{order.subHubName || order.pickupLocation || "—"}</p>
+              {order.superHubName && <p className="text-xs text-black/60">{order.superHubName}</p>}
             </div>
           ) : (
-            <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Home className="w-3 h-3" /> Delivery Address {d.label && <span className="text-gray-500 normal-case font-medium">· {d.label}</span>}</p>
+            <div className="bg-black/[0.03] rounded-2xl p-4 space-y-3">
+              <p className="text-[10px] font-black text-black/40 uppercase tracking-widest">
+                Delivery Address{d.label ? ` · ${d.label}` : ""}
+              </p>
               {(recipientName || recipientPhone) && (
-                <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-700">
-                  {recipientName && <span className="flex items-center gap-1"><User className="w-3 h-3 text-gray-400" /><span className="font-medium">{recipientName}</span></span>}
-                  {recipientPhone && <a href={`tel:${recipientPhone}`} className="flex items-center gap-1 hover:underline"><Phone className="w-3 h-3 text-gray-400" />{recipientPhone}</a>}
+                <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                  {recipientName && (
+                    <span className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-black/40" />
+                      <span className="text-sm font-semibold text-black">{recipientName}</span>
+                    </span>
+                  )}
+                  {recipientPhone && (
+                    <a href={`tel:${recipientPhone}`} className="flex items-center gap-2">
+                      <img src="/icon-phone.png" alt="Phone" className="w-3.5 h-3.5" />
+                      <span className="text-sm font-semibold text-black">{recipientPhone}</span>
+                    </a>
+                  )}
                 </div>
               )}
               {addressLines.length > 0 ? (
-                <div className="flex items-start gap-2 text-xs text-gray-600">
-                  <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2.5">
+                  <img src="/icon-pin.png" alt="Location" className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div className="space-y-0.5">
-                    {addressLines.map((ln, i) => <p key={i}>{ln}</p>)}
+                    {addressLines.map((ln, i) => (
+                      <p key={i} className="text-sm text-black font-medium leading-snug">{ln}</p>
+                    ))}
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">No delivery address on file</p>
+                <p className="text-sm text-black/40 italic">No delivery address on file</p>
               )}
-              {d.instructions && <p className="text-[11px] text-amber-700 italic border-l-2 border-amber-200 pl-2">Note: {d.instructions}</p>}
+              {d.instructions && (
+                <div className="border-l-2 border-amber-400 pl-3">
+                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-0.5">Note</p>
+                  <p className="text-sm text-black">{d.instructions}</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Schedule */}
+          {/* ── Schedule ── */}
           {(order.timeslotLabel || order.scheduledDate || order.deliveryDate) && (
-            <div className="bg-indigo-50/40 rounded-xl p-3 border border-indigo-100 flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-indigo-500" />
-              <div className="text-xs">
-                {(order.scheduledDate || order.deliveryDate) && <p className="text-[#162B4D] font-semibold">{formatDay(order.scheduledDate || order.deliveryDate)}</p>}
-                {order.timeslotLabel && <p className="text-indigo-600">{order.timeslotLabel}</p>}
+            <div className="bg-black/[0.03] rounded-2xl p-4 flex items-center gap-3">
+              <img src="/icon-clock.png" alt="Time" className="w-5 h-5 flex-shrink-0" />
+              <div>
+                {(order.scheduledDate || order.deliveryDate) && (
+                  <p className="text-sm font-bold text-black">{formatDay(order.scheduledDate || order.deliveryDate)}</p>
+                )}
+                {order.timeslotLabel && (
+                  <p className="text-sm font-semibold text-black/70">{order.timeslotLabel}</p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Items */}
+          {/* ── Items ── */}
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Items ({(order.items ?? []).length})</p>
-            <div className="space-y-1 border border-gray-100 rounded-xl p-2">
+            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-2">
+              Items ({(order.items ?? []).length})
+            </p>
+            <div className="border border-black/8 rounded-2xl overflow-hidden">
               {(order.items ?? []).map((i: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between text-xs border-b border-gray-100 last:border-0 py-1.5">
-                  <div className="min-w-0">
-                    <p className="text-[#162B4D] truncate">{i.name}</p>
-                    <p className="text-[10px] text-gray-400">{formatRupees(Number(i.price || 0))} × {i.quantity}{i.unit ? ` ${i.unit}` : ""}</p>
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-4 py-3 border-b border-black/5 last:border-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-black truncate">{i.name}</p>
+                    <p className="text-xs text-black/50 mt-0.5">
+                      {formatRupees(Number(i.price || 0))} × {i.quantity}{i.unit ? ` ${i.unit}` : ""}
+                    </p>
                   </div>
-                  <span className="font-semibold text-[#162B4D]">{formatRupees(Number(i.price || 0) * Number(i.quantity || 1))}</span>
+                  <span className="font-bold text-black text-sm ml-4">
+                    {formatRupees(Number(i.price || 0) * Number(i.quantity || 1))}
+                  </span>
                 </div>
               ))}
-              {(!order.items || order.items.length === 0) && <p className="text-xs text-gray-400 text-center py-2">No items</p>}
+              {(!order.items || order.items.length === 0) && (
+                <p className="text-sm text-black/40 text-center py-6">No items</p>
+              )}
             </div>
           </div>
 
-          {/* Totals */}
-          <div className="border border-gray-100 rounded-xl p-3 space-y-1">
-            <div className="flex justify-between text-xs"><span className="text-gray-500">Subtotal</span><span className="text-[#162B4D]">{formatRupees(sub)}</span></div>
+          {/* ── Totals ── */}
+          <div className="border border-black/8 rounded-2xl overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-black/5">
+              <span className="text-sm text-black/60">Subtotal</span>
+              <span className="text-sm font-medium text-black">{formatRupees(sub)}</span>
+            </div>
             {discount > 0 && (
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500 inline-flex items-center gap-1"><Tag className="w-3 h-3 text-emerald-500" />Coupon Discount{couponCode ? ` (${couponCode})` : ""}</span>
-                <span className="text-emerald-600">-{formatRupees(discount)}</span>
+              <div className="flex justify-between items-center px-4 py-3 border-b border-black/5">
+                <span className="text-sm text-emerald-700">
+                  Discount{couponCode ? ` (${couponCode})` : ""}
+                </span>
+                <span className="text-sm font-semibold text-emerald-600">−{formatRupees(discount)}</span>
               </div>
             )}
             {slot > 0 && (
-              <div className="flex justify-between text-xs"><span className="text-gray-500">Slot Charge</span><span className="text-[#162B4D]">{formatRupees(slot)}</span></div>
+              <div className="flex justify-between items-center px-4 py-3 border-b border-black/5">
+                <span className="text-sm text-black/60">Slot Charge</span>
+                <span className="text-sm font-medium text-black">{formatRupees(slot)}</span>
+              </div>
             )}
-            <div className="flex justify-between text-sm border-t border-gray-100 pt-1.5 mt-1.5"><span className="font-bold text-[#162B4D]">Grand Total</span><span className="font-bold text-[#162B4D]">{formatRupees(total)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-gray-500 inline-flex items-center gap-1"><Wallet className="w-3 h-3" />Paid</span><span className="font-semibold text-green-600">{formatRupees(paid)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-gray-500 inline-flex items-center gap-1"><Receipt className="w-3 h-3" />Due</span><span className={`font-semibold ${due > 0 ? "text-amber-600" : "text-gray-400"}`}>{formatRupees(due)}</span></div>
+            <div className="flex justify-between items-center px-4 py-3.5 bg-black/[0.02] border-b border-black/5">
+              <span className="text-base font-bold text-black">Grand Total</span>
+              <span className="text-base font-bold text-black">{formatRupees(total)}</span>
+            </div>
+            <div className="flex justify-between items-center px-4 py-3 border-b border-black/5">
+              <span className="text-sm text-black/60">Paid</span>
+              <span className="text-sm font-bold text-green-600">{formatRupees(paid)}</span>
+            </div>
+            <div className="flex justify-between items-center px-4 py-3">
+              <span className="text-sm text-black/60">Due</span>
+              <span className={`text-sm font-bold ${due > 0 ? "text-amber-600" : "text-black/30"}`}>
+                {formatRupees(due)}
+              </span>
+            </div>
             {order.paymentStatus && (
-              <div className="flex justify-between text-[11px] pt-1"><span className="text-gray-400">Payment Status</span><span className="font-semibold uppercase tracking-wide text-gray-600">{order.paymentStatus}</span></div>
+              <div className="flex justify-between items-center px-4 py-2.5 bg-black/[0.02] border-t border-black/5">
+                <span className="text-xs text-black/40 uppercase tracking-wide font-semibold">Payment Status</span>
+                <span className="text-xs font-bold text-black uppercase tracking-wide">{order.paymentStatus}</span>
+              </div>
             )}
           </div>
 
-          {/* Hub */}
+          {/* ── Hub ── */}
           {(order.superHubName || order.subHubName) && (
-            <div className="text-[11px] text-gray-500 inline-flex items-center gap-1.5"><Hash className="w-3 h-3 text-gray-400" />{[order.superHubName, order.subHubName].filter(Boolean).join(" → ")}</div>
+            <p className="text-xs text-black/40 font-medium">
+              {[order.superHubName, order.subHubName].filter(Boolean).join(" → ")}
+            </p>
           )}
 
-          {/* Notes */}
+          {/* ── Notes ── */}
           {order.notes && (
-            <div className="border-l-2 border-amber-200 bg-amber-50/40 pl-2 py-1.5 pr-2 rounded-r">
-              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1"><FileText className="w-3 h-3" />Order Notes</p>
-              <p className="text-[11px] text-gray-700">{order.notes}</p>
+            <div className="border-l-4 border-amber-400 bg-amber-50 pl-3 py-3 pr-3 rounded-r-xl">
+              <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Order Notes</p>
+              <p className="text-sm text-black">{order.notes}</p>
             </div>
           )}
         </div>
+      </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} className="h-9">Close</Button>
-          {nextStatuses.length > 0 && onUpdateStatus && (
-            <Button
-              onClick={() => { onUpdateStatus(order); onClose(); }}
-              className="bg-[#1A56DB] hover:bg-[#1447B4] h-9"
-            >
-              <Truck className="w-3.5 h-3.5 mr-1" /> Update Status
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* ── Sticky bottom action ── */}
+      {nextStatuses.length > 0 && onUpdateStatus && (
+        <div className="px-4 py-4 border-t border-black/8 bg-white flex-shrink-0">
+          <button
+            onClick={() => { onUpdateStatus(order); onClose(); }}
+            className="w-full h-12 rounded-2xl bg-[#1A56DB] hover:bg-[#1447B4] text-white text-base font-bold transition-colors active:scale-[0.98]"
+          >
+            Update Status
+          </button>
+        </div>
+      )}
+    </div>,
+    document.body
   );
 }
 
 // ─── ORDERS LIST (shared by both tabs) ────────────────────────────────────────
 
-function OrdersList({ mode, refreshKey }: { mode: "active" | "history"; refreshKey: number }) {
+function OrdersList({ mode, refreshKey, onCountChange }: { mode: "active" | "history"; refreshKey: number; onCountChange?: (n: number) => void }) {
   const { toast } = useToast();
   const admin = getAdminData();
 
@@ -326,8 +422,11 @@ function OrdersList({ mode, refreshKey }: { mode: "active" | "history"; refreshK
       o.phone?.includes(q) ||
       o.deliveryArea?.toLowerCase().includes(q) ||
       String(o._id).toLowerCase().includes(q.replace(/^#/, "")) ||
+      (o.orderId || "").toLowerCase().includes(q.replace(/^#/, "")) ||
       (o.items ?? []).some((i: any) => i.name?.toLowerCase().includes(q));
   }), [orders, search]);
+
+  useEffect(() => { onCountChange?.(filtered.length); }, [filtered.length, onCountChange]);
 
   const pagedOrders = usePaginated(filtered, 20, `${mode}|${search}|${statusFilter}`);
 
@@ -567,20 +666,18 @@ function OrdersList({ mode, refreshKey }: { mode: "active" | "history"; refreshK
                 className={`bg-white rounded-2xl border border-gray-100 border-l-4 ${leftBorder} shadow-sm overflow-hidden`}
               >
                 <div className="p-4 space-y-3">
-                  {/* Top row: name + amount */}
+                  {/* Row 1: Status badge (solid, no icon) + Order ID */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <SolidStatusBadge status={o.status} />
+                    <span className="text-xs font-mono font-bold text-black/40">{displayId}</span>
+                  </div>
+
+                  {/* Row 2: Customer name + amount + date */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <p className="font-bold text-black text-base leading-tight">{o.customerName}</p>
-                        <span className="text-xs font-semibold text-black/50">{displayId}</span>
-                      </div>
-                      <div className="mt-1.5">
-                        <StatusBadge status={o.status} />
-                      </div>
-                    </div>
+                    <p className="font-bold text-black text-base leading-tight">{o.customerName}</p>
                     <div className="text-right flex-shrink-0">
                       <p className="font-bold text-black text-lg leading-tight">{formatRupees(total)}</p>
-                      <p className="text-xs font-medium text-black/60 mt-0.5">{formatDate(o.createdAt)}</p>
+                      <p className="text-xs font-medium text-black/50 mt-0.5">{formatDate(o.createdAt)}</p>
                     </div>
                   </div>
 
@@ -643,66 +740,101 @@ function OrdersList({ mode, refreshKey }: { mode: "active" | "history"; refreshK
         label="orders"
       />
 
-      {/* Update Status Modal */}
-      <Dialog open={!!selectedOrder} onOpenChange={(o) => !o && setSelectedOrder(null)}>
-        <DialogContent className="sm:max-w-[420px]">
-          {selectedOrder && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-[#162B4D] flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-orange-500" /> Update Order Status
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="bg-gray-50 rounded-xl p-3 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="font-semibold text-[#162B4D] text-sm">{selectedOrder.customerName}</span>
+      {/* Update Status — full-screen overlay */}
+      {selectedOrder && createPortal(
+        <div className="fixed inset-0 z-[200] bg-white flex flex-col">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 h-14 border-b border-black/8 flex-shrink-0 bg-white">
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-black/5 hover:bg-black/10 flex-shrink-0"
+            >
+              <X className="w-5 h-5 text-black" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-black leading-tight">Update Status</p>
+              <p className="text-xs font-mono font-bold text-black/40 leading-tight">
+                {selectedOrder.orderId || ("#" + String(selectedOrder._id).slice(-6).toUpperCase())}
+              </p>
+            </div>
+            <SolidStatusBadge status={selectedOrder.status} />
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 space-y-4">
+
+              {/* Order info card */}
+              <div className="bg-black/[0.03] rounded-2xl p-4 space-y-2">
+                <p className="text-base font-bold text-black">{selectedOrder.customerName}</p>
+                {selectedOrder.phone && (
+                  <div className="flex items-center gap-2.5">
+                    <img src="/icon-phone.png" alt="Phone" className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-black">{selectedOrder.phone}</span>
                   </div>
-                  {selectedOrder.address && (
-                    <div className="flex items-start gap-2 text-xs text-gray-500">
-                      <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />{selectedOrder.address}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 ml-5">{(selectedOrder.items ?? []).map((i: any) => i.name).join(", ")}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Current Status</p>
-                  <StatusBadge status={selectedOrder.status} />
-                </div>
+                )}
+                {(selectedOrder.address || selectedOrder.deliveryArea) && (
+                  <div className="flex items-start gap-2.5">
+                    <img src="/icon-pin.png" alt="Location" className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-black font-medium leading-snug">
+                      {selectedOrder.address || selectedOrder.deliveryArea}
+                    </span>
+                  </div>
+                )}
+                {selectedOrder.timeslotLabel && (
+                  <div className="flex items-center gap-2.5">
+                    <img src="/icon-clock.png" alt="Time" className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-black">{selectedOrder.timeslotLabel}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Change to section */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-black text-black/40 uppercase tracking-widest">Update Order To</p>
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Change To</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {(STATUS_CONFIG[selectedOrder.status]?.next ?? []).map((s) => {
-                      const cfg = STATUS_CONFIG[s];
-                      const Icon = cfg.icon;
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => setEditStatus(s)}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${editStatus === s ? `${cfg.bg} ${cfg.color} border-current ring-2 ring-current/20` : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />{cfg.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {(STATUS_CONFIG[selectedOrder.status]?.next ?? []).map((s) => {
+                    const solidCfg = SOLID_STATUS[s] ?? { label: s, bg: "bg-gray-500" };
+                    const isSelected = editStatus === s;
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => setEditStatus(s)}
+                        className={`w-full flex items-center justify-between px-4 h-14 rounded-2xl border-2 text-sm font-bold transition-all ${
+                          isSelected
+                            ? `${solidCfg.bg} border-transparent text-white`
+                            : "border-black/8 bg-white text-black hover:border-black/20"
+                        }`}
+                      >
+                        <span>{solidCfg.label}</span>
+                        {isSelected && <CheckCircle2 className="w-5 h-5" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <DialogFooter className="gap-2 pt-2">
-                <Button variant="outline" onClick={() => setSelectedOrder(null)} className="h-9">Cancel</Button>
-                <Button
-                  onClick={handleUpdateStatus}
-                  disabled={saving || !editStatus || editStatus === selectedOrder.status}
-                  className="bg-[#1A56DB] hover:bg-[#1447B4] h-9"
-                >
-                  {saving ? "Updating..." : "Confirm Update"}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            </div>
+          </div>
+
+          {/* Sticky bottom */}
+          <div className="px-4 py-4 border-t border-black/8 bg-white flex-shrink-0 flex gap-3">
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="flex-1 h-12 rounded-2xl border-2 border-black/10 text-black font-bold text-sm hover:bg-black/5 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpdateStatus}
+              disabled={saving || !editStatus || editStatus === selectedOrder.status}
+              className="flex-[2] h-12 rounded-2xl bg-[#1A56DB] hover:bg-[#1447B4] text-white font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+            >
+              {saving ? "Updating…" : "Confirm Update"}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <OrderDetailDialog
         order={detail}
@@ -902,6 +1034,7 @@ export default function MyDeliveries() {
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeCount, setActiveCount] = useState<number | null>(null);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -952,7 +1085,15 @@ export default function MyDeliveries() {
                 : "text-black/50 hover:text-black"
             }`}
           >
-            <ShoppingBag className="w-4 h-4" /> Active Orders
+            <ShoppingBag className="w-4 h-4" />
+            Active Orders
+            {activeCount !== null && activeCount > 0 && (
+              <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-black ${
+                activeTab === "active" ? "bg-[#1A56DB] text-white" : "bg-black/15 text-black"
+              }`}>
+                {activeCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("history")}
@@ -967,7 +1108,7 @@ export default function MyDeliveries() {
         </div>
 
         {activeTab === "active"
-          ? <OrdersList mode="active" refreshKey={refreshKey} />
+          ? <OrdersList mode="active" refreshKey={refreshKey} onCountChange={setActiveCount} />
           : <OrdersList mode="history" refreshKey={refreshKey} />}
       </div>
     </>
