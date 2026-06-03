@@ -634,24 +634,6 @@ function OrdersList({ mode, refreshKey, onCountChange }: { mode: "active" | "his
 
       </div>
 
-      {/* Summary cards */}
-      {mode === "history" && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center"><History className="w-4 h-4 text-blue-600" /></div>
-            <div><p className="text-xs text-gray-500">Total Past Orders</p><p className="text-lg font-bold text-[#162B4D]">{summary.count}</p></div>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center"><CircleDollarSign className="w-4 h-4 text-green-600" /></div>
-            <div><p className="text-xs text-gray-500">Revenue Collected</p><p className="text-lg font-bold text-[#162B4D]">{formatRupees(summary.totalRevenue)}</p></div>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center"><CalendarDays className="w-4 h-4 text-purple-600" /></div>
-            <div><p className="text-xs text-gray-500">Order Value</p><p className="text-lg font-bold text-[#162B4D]">{formatRupees(summary.totalValue)}</p></div>
-          </div>
-        </div>
-      )}
-
       {/* Orders list */}
       {loading ? (
         <div className="space-y-3">

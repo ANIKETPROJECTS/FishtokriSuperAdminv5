@@ -449,8 +449,8 @@ export default function DeliveryReportPersonPage() {
 
       {!isLoading && !isError && (
         <>
-          {/* Stats strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* Stats strip — 2-col on mobile */}
+          <div className="grid grid-cols-2 gap-3">
             <StatCard
               label="Total Orders"
               value={String(summary.totalOrders)}
@@ -465,7 +465,7 @@ export default function DeliveryReportPersonPage() {
               color="text-green-600"
               icon={<CheckCircle2 className="w-4 h-4" />}
             />
-            {modeBreakdown.slice(0, 3).map(([mode, data]) => {
+            {modeBreakdown.slice(0, 2).map(([mode, data]) => {
               const m = modeMeta(mode);
               return (
                 <StatCard
@@ -480,252 +480,278 @@ export default function DeliveryReportPersonPage() {
             })}
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+          {/* Tabs — full width on mobile */}
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
             {(["overview", "orders"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-md text-sm font-semibold capitalize transition-colors ${
-                  activeTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
               >
                 {tab === "overview" ? "Overview" : `Orders (${orders.length})`}
               </button>
             ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { refetch(); }}
+            <button
+              onClick={() => refetch()}
               disabled={isFetching}
-              className="h-7 ml-1 text-xs text-gray-500 px-2"
+              className="flex items-center justify-center w-9 rounded-lg text-gray-400 hover:text-gray-600 disabled:opacity-40"
             >
-              <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
-            </Button>
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            </button>
           </div>
 
           {/* ── Overview tab ─────────────────────────────────────────────── */}
           {activeTab === "overview" && (
             <div className="space-y-4">
-              {/* Payment mode breakdown table */}
+              {/* Payment mode breakdown — mobile-first card list */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                <div className="px-4 py-3.5 border-b border-gray-100 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-brand-primary" />
                   <h3 className="text-sm font-bold text-gray-800">Payment Mode Breakdown</h3>
                 </div>
                 {modeBreakdown.length === 0 ? (
                   <div className="py-10 text-center text-gray-400 text-sm">No payment data for selected range</div>
                 ) : (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50 text-left border-b border-gray-100">
-                        <th className="px-5 py-2.5 text-xs font-semibold text-gray-500">Mode</th>
-                        <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 text-center">Transactions</th>
-                        <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 text-right">Amount</th>
-                        <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 text-right hidden sm:table-cell">Share</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {modeBreakdown.map(([mode, data]) => {
-                        const m = modeMeta(mode);
-                        const pct = totalPct(data.amount);
-                        return (
-                          <tr key={mode} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/60">
-                            <td className="px-5 py-3">
-                              <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${m.color}`}>
-                                {m.icon} {m.label}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3 text-center text-sm text-gray-600">{data.count}</td>
-                            <td className="px-5 py-3 text-right text-sm font-bold text-gray-800">{formatRupees(data.amount)}</td>
-                            <td className="px-5 py-3 hidden sm:table-cell">
-                              <div className="flex items-center justify-end gap-2">
-                                <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-brand-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="text-xs text-gray-500 w-10 text-right">{pct}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      <tr className="bg-gray-50 font-semibold border-t-2 border-gray-200">
-                        <td className="px-5 py-3 text-sm text-gray-800">Total</td>
-                        <td className="px-5 py-3 text-center text-sm text-gray-800">
-                          {modeBreakdown.reduce((s, [, d]) => s + d.count, 0)}
-                        </td>
-                        <td className="px-5 py-3 text-right text-sm text-gray-800">{formatRupees(summary.totalRevenue)}</td>
-                        <td className="px-5 py-3 hidden sm:table-cell text-right text-xs text-gray-500">100%</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className="divide-y divide-gray-100">
+                    {modeBreakdown.map(([mode, data]) => {
+                      const m = modeMeta(mode);
+                      const pct = totalPct(data.amount);
+                      return (
+                        <div key={mode} className="px-4 py-3.5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`flex items-center gap-1.5 text-sm font-semibold ${m.color}`}>
+                              {m.icon} {m.label}
+                            </span>
+                            <span className="text-sm font-bold text-gray-800">{formatRupees(data.amount)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-brand-primary rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-xs text-gray-400 w-20 text-right flex-shrink-0">
+                              {data.count} txn · {pct}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="px-4 py-3 bg-gray-50 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Total · {modeBreakdown.reduce((s, [, d]) => s + d.count, 0)} transactions
+                      </span>
+                      <span className="text-sm font-bold text-gray-800">{formatRupees(summary.totalRevenue)}</span>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Daily summary — last 10 days with orders */}
+              {/* Daily summary — mobile-first card list */}
               {orders.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                  <div className="px-4 py-3.5 border-b border-gray-100 flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-brand-primary" />
                     <h3 className="text-sm font-bold text-gray-800">Daily Summary</h3>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[500px]">
-                      <thead>
-                        <tr className="bg-gray-50 text-left border-b border-gray-100">
-                          <th className="px-5 py-2.5 text-xs font-semibold text-gray-500">Date</th>
-                          <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 text-center">Orders</th>
-                          <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 text-right">Collected</th>
-                          <th className="px-5 py-2.5 text-xs font-semibold text-gray-500 text-right">Due</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          const byDay = new Map<string, { orders: number; collected: number; due: number }>();
-                          orders.forEach((o) => {
-                            const d = new Date(o.createdAt).toLocaleDateString("en-CA");
-                            if (!byDay.has(d)) byDay.set(d, { orders: 0, collected: 0, due: 0 });
-                            const day = byDay.get(d)!;
-                            day.orders++;
-                            day.collected += (o.payments ?? []).reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
-                            day.due += Number(o.dueAmount) || 0;
-                          });
-                          return Array.from(byDay.entries())
-                            .sort((a, b) => b[0].localeCompare(a[0]))
-                            .slice(0, 15)
-                            .map(([date, stats]) => (
-                              <tr key={date} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/60">
-                                <td className="px-5 py-2.5 text-sm text-gray-700">
-                                  {new Date(date).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
-                                </td>
-                                <td className="px-5 py-2.5 text-center text-sm font-medium text-brand-primary">{stats.orders}</td>
-                                <td className="px-5 py-2.5 text-right text-sm font-semibold text-green-600">{formatRupees(stats.collected)}</td>
-                                <td className="px-5 py-2.5 text-right text-sm font-semibold">
-                                  <span className={stats.due > 0 ? "text-red-500" : "text-gray-400"}>
-                                    {formatRupees(stats.due)}
-                                  </span>
-                                </td>
-                              </tr>
-                            ));
-                        })()}
-                      </tbody>
-                    </table>
+                  <div className="divide-y divide-gray-100">
+                    {(() => {
+                      const byDay = new Map<string, { orders: number; collected: number; due: number }>();
+                      orders.forEach((o) => {
+                        const d = new Date(o.createdAt).toLocaleDateString("en-CA");
+                        if (!byDay.has(d)) byDay.set(d, { orders: 0, collected: 0, due: 0 });
+                        const day = byDay.get(d)!;
+                        day.orders++;
+                        day.collected += (o.payments ?? []).reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+                        day.due += Number(o.dueAmount) || 0;
+                      });
+                      return Array.from(byDay.entries())
+                        .sort((a, b) => b[0].localeCompare(a[0]))
+                        .slice(0, 15)
+                        .map(([date, stats]) => (
+                          <div key={date} className="px-4 py-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-800">
+                                {new Date(date).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {stats.orders} order{stats.orders !== 1 ? "s" : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-4 flex-shrink-0">
+                              <div className="text-right">
+                                <p className="text-xs text-gray-400">Collected</p>
+                                <p className="text-sm font-semibold text-green-600">{formatRupees(stats.collected)}</p>
+                              </div>
+                              {stats.due > 0 && (
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-400">Due</p>
+                                  <p className="text-sm font-semibold text-red-500">{formatRupees(stats.due)}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ));
+                    })()}
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── Orders tab ───────────────────────────────────────────────── */}
+          {/* ── Orders tab — mobile-first card list ──────────────────────── */}
           {activeTab === "orders" && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              {/* Filters toolbar */}
-              <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap gap-2 items-center">
-                <div className="relative flex-1 min-w-[180px] max-w-xs">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <div className="space-y-3">
+              {/* Filters */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                   <Input
                     placeholder="Search customer, area, order #..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-8 h-8 text-sm"
+                    className="pl-9 h-9 text-sm"
                   />
                   {search && (
-                    <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 border border-gray-200 rounded-md text-sm px-2 text-gray-700 bg-white"
-                >
-                  <option value="all">All Status</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="takeaway">Takeaway</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-
-                <select
-                  value={modeFilter}
-                  onChange={(e) => setModeFilter(e.target.value)}
-                  className="h-8 border border-gray-200 rounded-md text-sm px-2 text-gray-700 bg-white"
-                >
-                  <option value="all">All Modes</option>
-                  {allModes.map((m) => (
-                    <option key={m} value={m}>{modeMeta(m).label}</option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => setSortDir((v) => v === "desc" ? "asc" : "desc")}
-                  className="h-8 flex items-center gap-1.5 border border-gray-200 rounded-md px-2.5 text-sm text-gray-600 hover:border-gray-300 bg-white"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  {sortDir === "desc" ? "Newest first" : "Oldest first"}
-                </button>
-
-                <span className="text-xs text-gray-400 ml-auto">
+                <div className="flex gap-2 flex-wrap">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="flex-1 min-w-[110px] h-9 border border-gray-200 rounded-lg text-sm px-2 text-gray-700 bg-white"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="takeaway">Takeaway</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                  <select
+                    value={modeFilter}
+                    onChange={(e) => setModeFilter(e.target.value)}
+                    className="flex-1 min-w-[110px] h-9 border border-gray-200 rounded-lg text-sm px-2 text-gray-700 bg-white"
+                  >
+                    <option value="all">All Modes</option>
+                    {allModes.map((m) => (
+                      <option key={m} value={m}>{modeMeta(m).label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => setSortDir((v) => v === "desc" ? "asc" : "desc")}
+                    className="h-9 flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 text-sm text-gray-600 bg-white flex-shrink-0"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    {sortDir === "desc" ? "Newest" : "Oldest"}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 text-right">
                   {filteredOrders.length} of {orders.length} orders
-                </span>
+                </p>
               </div>
 
               {filteredOrders.length === 0 ? (
-                <div className="py-14 text-center text-gray-400">
+                <div className="bg-white rounded-xl border border-gray-200 py-14 text-center text-gray-400">
                   <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm font-medium">No orders match your filters</p>
-                  <button onClick={() => { setSearch(""); setStatusFilter("all"); setModeFilter("all"); }} className="text-xs text-brand-primary mt-2 hover:underline">
+                  <button
+                    onClick={() => { setSearch(""); setStatusFilter("all"); setModeFilter("all"); }}
+                    className="text-xs text-brand-primary mt-2 hover:underline"
+                  >
                     Clear filters
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px]">
-                    <thead>
-                      <tr className="bg-gray-50 text-left border-b border-gray-100">
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500">Order #</th>
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500">Customer</th>
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500 hidden sm:table-cell">Area</th>
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500 hidden md:table-cell">Date</th>
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500 text-right">Total</th>
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500 text-right hidden lg:table-cell">Payments</th>
-                        <th className="py-2.5 px-3 text-xs font-semibold text-gray-500 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOrders.map((order, idx) => (
-                        <OrderRow key={order.id} order={order} idx={idx} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                <>
+                  {filteredOrders.map((order) => {
+                    const STATUS_COLORS: Record<string, string> = {
+                      delivered: "bg-green-100 text-green-700",
+                      takeaway: "bg-blue-100 text-blue-700",
+                      cancelled: "bg-red-100 text-red-700",
+                    };
+                    const PAY_COLORS: Record<string, string> = {
+                      paid: "bg-green-100 text-green-700",
+                      partial: "bg-yellow-100 text-yellow-700",
+                      unpaid: "bg-red-100 text-red-700",
+                    };
+                    return (
+                      <div key={order.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-mono text-gray-400">
+                              #{order.orderNumber ?? String(order.id).slice(-6).toUpperCase()}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-800 mt-0.5">{order.customerName || "—"}</p>
+                            {order.phone && <p className="text-xs text-gray-400">{order.phone}</p>}
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-600"}`}>
+                              {order.status === "takeaway" ? "Takeaway" : order.status}
+                            </span>
+                            {order.paymentStatus && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${PAY_COLORS[order.paymentStatus] ?? "bg-gray-100 text-gray-600"}`}>
+                                {order.paymentStatus}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          {order.createdAt && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(order.createdAt)}
+                            </span>
+                          )}
+                          {(order.deliveryArea || order.subHubName) && (
+                            <span className="flex items-center gap-1 truncate">
+                              <Hash className="w-3 h-3" />
+                              {order.deliveryArea || order.subHubName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                          <div className="flex flex-wrap gap-1">
+                            {Array.isArray(order.payments) && order.payments.map((p: any, i: number) => (
+                              <ModeTag key={i} mode={p.mode} amount={p.amount} />
+                            ))}
+                            {(!order.payments || order.payments.length === 0) && (
+                              <span className="text-xs text-gray-400">No payments</span>
+                            )}
+                          </div>
+                          <span className="text-base font-bold text-gray-800 flex-shrink-0 ml-2">
+                            {formatRupees(order.total ?? 0)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
 
-              {/* Table footer summary */}
-              {filteredOrders.length > 0 && (
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 text-xs text-gray-500">
-                  <span>
-                    <strong className="text-gray-700">{filteredOrders.length}</strong> orders
-                  </span>
-                  <span>
-                    Total: <strong className="text-gray-700">
-                      {formatRupees(filteredOrders.reduce((s, o) => s + (o.total ?? 0), 0))}
-                    </strong>
-                  </span>
-                  <span>
-                    Collected: <strong className="text-green-600">
-                      {formatRupees(filteredOrders.reduce((s, o) => s + ((o.payments ?? []).reduce((ps: number, p: any) => ps + (Number(p.amount) || 0), 0)), 0))}
-                    </strong>
-                  </span>
-                  {filteredOrders.reduce((s, o) => s + (Number(o.dueAmount) || 0), 0) > 0 && (
-                    <span>
-                      Due: <strong className="text-red-500">
-                        {formatRupees(filteredOrders.reduce((s, o) => s + (Number(o.dueAmount) || 0), 0))}
+                  {/* Summary footer */}
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap gap-3 text-sm">
+                    <span className="text-gray-500">
+                      <strong className="text-gray-800">{filteredOrders.length}</strong> orders
+                    </span>
+                    <span className="text-gray-500">
+                      Total: <strong className="text-gray-800">
+                        {formatRupees(filteredOrders.reduce((s, o) => s + (o.total ?? 0), 0))}
                       </strong>
                     </span>
-                  )}
-                </div>
+                    <span className="text-gray-500">
+                      Collected: <strong className="text-green-600">
+                        {formatRupees(filteredOrders.reduce((s, o) => s + ((o.payments ?? []).reduce((ps: number, p: any) => ps + (Number(p.amount) || 0), 0)), 0))}
+                      </strong>
+                    </span>
+                    {filteredOrders.reduce((s, o) => s + (Number(o.dueAmount) || 0), 0) > 0 && (
+                      <span className="text-gray-500">
+                        Due: <strong className="text-red-500">
+                          {formatRupees(filteredOrders.reduce((s, o) => s + (Number(o.dueAmount) || 0), 0))}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}
