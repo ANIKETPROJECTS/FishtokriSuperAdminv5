@@ -419,7 +419,7 @@ function OrderDetailDialog({
 
 // ─── ORDERS LIST (shared by both tabs) ────────────────────────────────────────
 
-function OrdersList({ mode, refreshKey, onCountChange }: { mode: "active" | "history"; refreshKey: number; onCountChange?: (n: number) => void }) {
+function OrdersList({ mode, refreshKey, silentRefreshKey, onCountChange }: { mode: "active" | "history"; refreshKey: number; silentRefreshKey?: number; onCountChange?: (n: number) => void }) {
   const { toast } = useToast();
   const admin = getAdminData();
 
@@ -452,19 +452,20 @@ function OrdersList({ mode, refreshKey, onCountChange }: { mode: "active" | "his
     return () => document.removeEventListener("mousedown", handler);
   }, [filterOpen]);
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (silent = false) => {
     if (!admin?.id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams({ assignedTo: admin.id, limit: "100" });
       if (statusFilter) params.set("status", statusFilter);
       else params.set("status", allowedStatuses.join(","));
       const data = await apiFetch(`/api/orders?${params}`);
       setOrders(data.orders ?? []);
-    } catch { } finally { setLoading(false); }
+    } catch { } finally { if (!silent) setLoading(false); }
   }, [admin?.id, statusFilter, allowedStatuses.join(",")]);
 
-  useEffect(() => { loadOrders(); }, [loadOrders, refreshKey]);
+  useEffect(() => { loadOrders(false); }, [loadOrders, refreshKey]);
+  useEffect(() => { if (silentRefreshKey) loadOrders(true); }, [silentRefreshKey]);
 
   const filtered = useMemo(() => orders.filter((o) => {
     if (!search) return true;
@@ -1081,6 +1082,7 @@ function OrdersList({ mode, refreshKey, onCountChange }: { mode: "active" | "his
 export default function MyDeliveries() {
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [silentPollKey, setSilentPollKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
@@ -1088,6 +1090,14 @@ export default function MyDeliveries() {
   useEffect(() => {
     const el = document.getElementById("page-header-slot");
     setHeaderSlot(el as HTMLElement | null);
+  }, []);
+
+  // Auto-poll every 30 seconds silently (no blank screen)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSilentPollKey((k) => k + 1);
+    }, 30000);
+    return () => clearInterval(id);
   }, []);
 
   const handleRefresh = () => {
@@ -1156,8 +1166,8 @@ export default function MyDeliveries() {
         </div>
 
         {activeTab === "active"
-          ? <OrdersList mode="active" refreshKey={refreshKey} onCountChange={setActiveCount} />
-          : <OrdersList mode="history" refreshKey={refreshKey} />}
+          ? <OrdersList mode="active" refreshKey={refreshKey} silentRefreshKey={silentPollKey} onCountChange={setActiveCount} />
+          : <OrdersList mode="history" refreshKey={refreshKey} silentRefreshKey={silentPollKey} />}
       </div>
     </>
   );

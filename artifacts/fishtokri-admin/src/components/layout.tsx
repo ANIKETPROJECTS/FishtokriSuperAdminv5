@@ -265,7 +265,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const deliveryNavItems = [
     { href: "/my-deliveries", label: "Orders", icon: Truck, iconSrc: "/icon-order-delivery.png" },
-    { href: "/delivery-report", label: "My Report", icon: FileBarChart, iconSrc: "/icon-report-custom.png" },
+    { href: "/delivery-report", label: "My Report", icon: FileBarChart, iconSrc: "/icon-report-custom.png", matchPrefix: "/delivery-report" },
   ];
 
   const navItems = isSuperHub
@@ -288,6 +288,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
+      )}
+
+      {/* Mobile close circle — floats on the right border of the sidebar, vertically centered */}
+      {mobileOpen && (
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden fixed z-50 w-10 h-10 rounded-full bg-[#162B4D] border-2 border-white/20 shadow-xl flex items-center justify-center hover:bg-[#1d3a6b] transition-colors active:scale-95"
+          style={{ left: "220px", top: "50%", transform: "translateY(-50%)" }}
+          aria-label="Close menu"
+        >
+          <ChevronLeft className="w-5 h-5 text-white" />
+        </button>
       )}
 
       {/* Sidebar — drawer on mobile, fixed column on md+ */}
@@ -382,12 +394,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     ) : (
                       <Icon className={`w-7 h-7 flex-shrink-0 ${isActive ? "text-white" : "text-white/70"}`} />
                     )}
-                    <span className={`text-lg font-semibold truncate ${isActive ? "text-white" : "text-white"}`}>
+                    <span className={`text-lg font-semibold truncate text-white`}>
                       {label}
                     </span>
-                    {isActive && (
-                      <div className="ml-auto w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-                    )}
                   </div>
                 </Link>
               );
@@ -427,32 +436,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
             );
           })}
 
-          {/* Delivery close handle — vertically centered in the nav */}
-          {isDelivery && isMobile && expanded && (
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/10 border border-white/15 hover:bg-white/15 transition-colors"
-                style={{ fontFamily: "Poppins, sans-serif" }}
-              >
-                <ChevronLeft className="w-5 h-5 text-white" />
-                <span className="text-sm font-semibold text-white">Close Menu</span>
-              </button>
-            </div>
-          )}
+        
         </nav>
 
-        {/* Settings Section */}
+        {/* Profile Section */}
         <div className={`border-t border-white/10 ${expanded ? "px-5 pt-4 pb-3" : "py-3"}`}>
           {expanded && (
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">Settings</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">Profile</p>
           )}
 
           {/* User info card */}
           {expanded ? (
             <div className="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg bg-white/5">
-              <div className="w-8 h-8 rounded-full bg-[#F05B4E]/20 border border-[#F05B4E]/30 flex items-center justify-center flex-shrink-0">
-                <UserCircle className="w-5 h-5 text-[#F05B4E]" />
+              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <div
+                  className="w-5 h-5 flex-shrink-0"
+                  style={{
+                    WebkitMaskImage: "url(/icon-account.png)",
+                    maskImage: "url(/icon-account.png)",
+                    WebkitMaskSize: "contain",
+                    maskSize: "contain",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                    WebkitMaskPosition: "center",
+                    maskPosition: "center",
+                    backgroundColor: "white",
+                  }}
+                />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white truncate leading-tight">{adminName}</p>
@@ -465,10 +475,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ) : (
             <div className="flex justify-center mb-2">
               <div
-                className="w-8 h-8 rounded-full bg-[#F05B4E]/20 border border-[#F05B4E]/30 flex items-center justify-center"
+                className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center"
                 title={`${adminName} — ${roleLabel}`}
               >
-                <UserCircle className="w-5 h-5 text-[#F05B4E]" />
+                <div
+                  className="w-5 h-5 flex-shrink-0"
+                  style={{
+                    WebkitMaskImage: "url(/icon-account.png)",
+                    maskImage: "url(/icon-account.png)",
+                    WebkitMaskSize: "contain",
+                    maskSize: "contain",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                    WebkitMaskPosition: "center",
+                    maskPosition: "center",
+                    backgroundColor: "white",
+                  }}
+                />
               </div>
             </div>
           )}
@@ -477,7 +500,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {expanded ? (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white hover:bg-red-500/15 hover:border-red-500/20 border border-transparent transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white hover:bg-red-500/15 hover:border-red-500/20 border border-transparent transition-colors"
             >
               <LogOut className="w-4 h-4 flex-shrink-0" />
               <span>Logout</span>
@@ -487,15 +510,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <button
                 onClick={handleLogout}
                 title="Logout"
-                className="p-2 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/15 transition-colors"
+                className="p-2 rounded-lg text-white hover:text-red-400 hover:bg-red-500/15 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
-          )}
-
-          {expanded && (
-            <p className="text-[10px] text-white/20 text-center mt-3">FishTokri Admin System</p>
           )}
         </div>
 
