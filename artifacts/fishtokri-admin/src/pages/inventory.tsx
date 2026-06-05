@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, Search, Boxes, Package, AlertTriangle, Clock, Lock, ChevronRight, ArrowRight } from "lucide-react";
+import * as XLSX from "xlsx";
+import { Building2, Search, Boxes, Package, AlertTriangle, Clock, Lock, ChevronRight, ArrowRight, Download, CheckSquare, Square } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +93,7 @@ export default function InventoryPage() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   useEffect(() => {
     apiFetch("/api/super-hubs")
@@ -151,6 +153,7 @@ export default function InventoryPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
+      if (inStockOnly && p.quantity <= 0) return false;
       if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
       if (!q) return true;
       return (
@@ -159,9 +162,9 @@ export default function InventoryPage() {
         p.subCategory.toLowerCase().includes(q)
       );
     });
-  }, [products, search, categoryFilter]);
+  }, [products, search, categoryFilter, inStockOnly]);
 
-  const pagedProducts = usePaginated(filtered, 20, `${search}|${categoryFilter}`);
+  const pagedProducts = usePaginated(filtered, 20, `${search}|${categoryFilter}|${inStockOnly}`);
 
   const totalValue = filtered.reduce((s, p) => s + p.price * p.quantity, 0);
   const lowStock = filtered.filter((p) => p.quantity > 0 && p.quantity < 5).length;
@@ -172,6 +175,32 @@ export default function InventoryPage() {
       return b.quantity > 0 && dl != null && dl <= 7;
     }).length;
   }, 0);
+
+  function exportToExcel() {
+    const rows = filtered.map((p) => {
+      const batches = p.batches ?? [];
+      const nextExpiry = batches.find((b) => b.quantity > 0 && b.expiryDate)?.expiryDate ?? "";
+      return {
+        Product: p.name,
+        Category: p.category,
+        "Sub Category": p.subCategory,
+        Unit: p.unit,
+        "Price (₹)": p.price,
+        Stock: p.quantity,
+        "Stock Value (₹)": p.price * p.quantity,
+        Batches: batches.map((b) => b.batchNumber).filter(Boolean).join(", "),
+        "Next Expiry": nextExpiry ? new Date(nextExpiry).toLocaleDateString("en-IN") : "",
+        Status: p.status,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const colWidths = [30, 18, 18, 10, 12, 8, 16, 36, 14, 10];
+    ws["!cols"] = colWidths.map((w) => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+    const filename = `inventory-${selectedSubHub?.name ?? "export"}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  }
 
   function handleProductClick(p: Product) {
     const params = new URLSearchParams({
@@ -248,7 +277,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Filter bar */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
               <div className="flex-1 relative">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <Input
@@ -259,12 +288,32 @@ export default function InventoryPage() {
                 />
               </div>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="h-10 w-full sm:w-56"><SelectValue placeholder="All categories" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full sm:w-48"><SelectValue placeholder="All categories" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All categories</SelectItem>
                   {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <button
+                type="button"
+                onClick={() => setInStockOnly((v) => !v)}
+                className={`h-10 px-4 rounded-xl border text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0 ${
+                  inStockOnly
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {inStockOnly ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                In Stock Only
+              </button>
+              <button
+                type="button"
+                onClick={exportToExcel}
+                className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 flex items-center gap-2 transition-colors flex-shrink-0"
+              >
+                <Download className="w-4 h-4 text-gray-400" />
+                Export Excel
+              </button>
             </div>
 
             {/* Product list */}
