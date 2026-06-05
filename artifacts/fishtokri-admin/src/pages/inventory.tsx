@@ -101,22 +101,12 @@ export default function InventoryPage() {
 
   const adminScope = useMemo(() => getCurrentAdminScope(), []);
 
-  // Auto-select + lock to Mumbai super hub
+  // Auto-select first available super hub
   useEffect(() => {
     if (!superHubs.length) return;
-    // Lock to Mumbai (find by name, case-insensitive)
-    const mumbai = superHubs.find((h) => h.name.toLowerCase().includes("mumbai"));
-    if (mumbai && !selectedSuperHubId) {
-      setSelectedSuperHubId(mumbai.id);
-      setSelectedSuperHub(mumbai);
-      return;
-    }
-    // Fallback: auto-select for super_hub role
     if (selectedSuperHubId) return;
-    if (adminScope.role === "super_hub" && superHubs.length === 1) {
-      setSelectedSuperHubId(superHubs[0].id);
-      setSelectedSuperHub(superHubs[0]);
-    }
+    setSelectedSuperHubId(superHubs[0].id);
+    setSelectedSuperHub(superHubs[0]);
   }, [superHubs]);
 
   useEffect(() => {
@@ -130,21 +120,12 @@ export default function InventoryPage() {
     setSelectedSubHub(null);
   }, [selectedSuperHubId, toast]);
 
-  // Auto-select + lock to Thane sub hub
+  // Auto-select first available sub hub
   useEffect(() => {
     if (!subHubs.length) return;
-    const thane = subHubs.find((h) => h.name.toLowerCase().includes("thane"));
-    if (thane && !selectedSubHubId) {
-      setSelectedSubHubId(thane.id);
-      setSelectedSubHub(thane);
-      return;
-    }
-    // Fallback: auto-select for super_hub role
     if (selectedSubHubId) return;
-    if (adminScope.role === "super_hub" && subHubs.length === 1) {
-      setSelectedSubHubId(subHubs[0].id);
-      setSelectedSubHub(subHubs[0]);
-    }
+    setSelectedSubHubId(subHubs[0].id);
+    setSelectedSubHub(subHubs[0]);
   }, [subHubs]);
 
   useEffect(() => {

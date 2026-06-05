@@ -458,11 +458,56 @@ function BatchSelector({
   );
 }
 
-// ─── EXISTING BATCHES CARD ───────────────────────────────────────────────────
-function ExistingBatchesCard({ batches, unit }: { batches: Batch[]; unit: string }) {
-  const activeBatches = batches.filter((b) => b.quantity > 0);
+// ─── EXISTING BATCHES CARD (editable) ────────────────────────────────────────
+function ExistingBatchesCard({
+  batches, unit, productId, subHubId, onReload,
+}: {
+  batches: Batch[];
+  unit: string;
+  productId: string;
+  subHubId: string;
+  onReload: () => void;
+}) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  if (activeBatches.length === 0) return null;
+  const [edited, setEdited] = useState<Batch[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // Sync local edit state when batches prop changes or panel opens
+  useEffect(() => {
+    setEdited(batches.map((b) => ({ ...b })));
+    setDirty(false);
+  }, [batches, open]);
+
+  if (batches.length === 0) return null;
+
+  function patchBatch(idx: number, patch: Partial<Batch>) {
+    setEdited((prev) => prev.map((b, i) => i === idx ? { ...b, ...patch } : b));
+    setDirty(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/inventory/products/${productId}/batches?subHubId=${subHubId}`, {
+        method: "PUT",
+        body: JSON.stringify({ batches: edited }),
+      });
+      toast({ title: "Batches updated successfully" });
+      setDirty(false);
+      onReload();
+    } catch (err: any) {
+      toast({ title: "Failed to save batches", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setEdited(batches.map((b) => ({ ...b })));
+    setDirty(false);
+  }
 
   return (
     <div className="mt-3 rounded-xl border border-[#364F9F]/15 bg-[#364F9F]/3 overflow-hidden">
@@ -473,58 +518,109 @@ function ExistingBatchesCard({ batches, unit }: { batches: Batch[]; unit: string
       >
         <Layers className="w-3.5 h-3.5 text-[#364F9F]" />
         <span className="text-[11px] font-bold text-[#364F9F] uppercase tracking-widest flex-1 text-left">
-          Existing Batches ({activeBatches.length})
+          Existing Batches ({batches.length})
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-[#364F9F] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
         <>
-          <div className="px-4 py-1.5 bg-[#364F9F]/5 border-y border-[#364F9F]/10">
-            <div className="grid grid-cols-4 gap-3">
+          {/* Column headers */}
+          <div className="px-3 py-1.5 bg-[#364F9F]/5 border-y border-[#364F9F]/10">
+            <div className="grid grid-cols-6 gap-2">
               <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Batch ID</span>
-              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Qty Available</span>
-              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Added Date</span>
-              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Expiry Date</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Qty ({unit})</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Shelf Life (d)</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Received</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Expiry</span>
+              <span className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Notes</span>
             </div>
           </div>
-          <div className="divide-y divide-[#364F9F]/10">
-            {activeBatches.map((b) => {
-              const dl = daysUntil(b.expiryDate);
-              const expBg = dl == null ? "bg-gray-100 text-gray-600 border-gray-200"
-                : dl < 0 ? "bg-red-50 text-red-700 border-red-200"
-                : dl <= 7 ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200";
-              const expLabel = dl == null ? "No expiry"
-                : dl < 0 ? `Expired ${Math.abs(dl)}d ago`
-                : dl === 0 ? "Expires today"
-                : `${dl}d left`;
 
+          {/* Editable rows */}
+          <div className="divide-y divide-[#364F9F]/10">
+            {edited.map((b, i) => {
+              const dl = daysUntil(b.expiryDate);
+              const expColor = dl == null ? "border-gray-200"
+                : dl < 0 ? "border-red-300 bg-red-50"
+                : dl <= 7 ? "border-amber-300 bg-amber-50"
+                : "border-emerald-200 bg-emerald-50";
               return (
-                <div key={b.id} className="px-4 py-2.5 grid grid-cols-4 gap-3 items-center hover:bg-white/60 transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Hash className="w-3 h-3 text-[#364F9F] flex-shrink-0" />
-                    <span className="text-[12px] font-bold text-[#162B4D] truncate">{b.batchNumber || "—"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <PackageOpen className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <span className="text-[12px] font-bold text-[#162B4D]">{b.quantity}</span>
-                    <span className="text-[11px] text-gray-400 font-medium">{unit}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <span className="text-[11px] text-gray-500 font-medium">{formatDate(b.receivedDate)}</span>
-                  </div>
-                  <div>
-                    <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border ${expBg}`}>
-                      {b.expiryDate ? formatExpiry(b.expiryDate) : "—"}
-                      <span className="ml-1 opacity-75">· {expLabel}</span>
-                    </span>
-                  </div>
+                <div key={b.id} className="px-3 py-2 grid grid-cols-6 gap-2 items-center bg-white/50 hover:bg-white/80 transition-colors">
+                  <input
+                    type="text"
+                    value={b.batchNumber}
+                    onChange={(e) => patchBatch(i, { batchNumber: e.target.value.toUpperCase() })}
+                    className="h-7 px-2 text-[11px] font-bold font-mono text-[#162B4D] border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#364F9F]/30 uppercase"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={b.quantity}
+                    onChange={(e) => patchBatch(i, { quantity: Number(e.target.value) })}
+                    className="h-7 px-2 text-[11px] font-bold text-[#162B4D] border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#364F9F]/30"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={b.shelfLifeDays ?? ""}
+                    onChange={(e) => {
+                      const days = e.target.value === "" ? null : Number(e.target.value);
+                      let expiry = b.expiryDate;
+                      if (days !== null && b.receivedDate) {
+                        const d = new Date(b.receivedDate);
+                        d.setDate(d.getDate() + days);
+                        expiry = d.toISOString().slice(0, 10);
+                      }
+                      patchBatch(i, { shelfLifeDays: days, expiryDate: expiry });
+                    }}
+                    placeholder="—"
+                    className="h-7 px-2 text-[11px] text-[#162B4D] border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#364F9F]/30"
+                  />
+                  <input
+                    type="date"
+                    value={b.receivedDate?.slice(0, 10) ?? ""}
+                    onChange={(e) => patchBatch(i, { receivedDate: e.target.value || null })}
+                    className="h-7 px-2 text-[11px] text-[#162B4D] border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#364F9F]/30"
+                  />
+                  <input
+                    type="date"
+                    value={b.expiryDate?.slice(0, 10) ?? ""}
+                    onChange={(e) => patchBatch(i, { expiryDate: e.target.value || null })}
+                    className={`h-7 px-2 text-[11px] text-[#162B4D] border rounded focus:outline-none focus:ring-1 focus:ring-[#364F9F]/30 ${expColor}`}
+                  />
+                  <input
+                    type="text"
+                    value={b.notes}
+                    onChange={(e) => patchBatch(i, { notes: e.target.value })}
+                    placeholder="Notes..."
+                    className="h-7 px-2 text-[11px] text-gray-600 border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-[#364F9F]/30"
+                  />
                 </div>
               );
             })}
           </div>
+
+          {/* Save / Cancel toolbar */}
+          {dirty && (
+            <div className="px-3 py-2 bg-[#364F9F]/5 border-t border-[#364F9F]/10 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-3 py-1 rounded border border-gray-200 bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="text-[11px] font-semibold text-white bg-[#364F9F] hover:bg-[#2a3d7a] px-3 py-1 rounded transition-colors disabled:opacity-60"
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -559,17 +655,9 @@ export default function InventoryStockAdjustment() {
 
   useEffect(() => {
     if (!superHubs.length) return;
-    const mumbai = superHubs.find((h) => h.name.toLowerCase().includes("mumbai"));
-    if (mumbai && !selectedSuperHubId) {
-      setSelectedSuperHubId(mumbai.id);
-      setSelectedSuperHub(mumbai);
-      return;
-    }
     if (selectedSuperHubId) return;
-    if (adminScope.role === "super_hub" && superHubs.length === 1) {
-      setSelectedSuperHubId(superHubs[0].id);
-      setSelectedSuperHub(superHubs[0]);
-    }
+    setSelectedSuperHubId(superHubs[0].id);
+    setSelectedSuperHub(superHubs[0]);
   }, [superHubs]);
 
   useEffect(() => {
@@ -585,17 +673,9 @@ export default function InventoryStockAdjustment() {
 
   useEffect(() => {
     if (!subHubs.length) return;
-    const thane = subHubs.find((h) => h.name.toLowerCase().includes("thane"));
-    if (thane && !selectedSubHubId) {
-      setSelectedSubHubId(thane.id);
-      setSelectedSubHub(thane);
-      return;
-    }
     if (selectedSubHubId) return;
-    if (adminScope.role === "super_hub" && subHubs.length === 1) {
-      setSelectedSubHubId(subHubs[0].id);
-      setSelectedSubHub(subHubs[0]);
-    }
+    setSelectedSubHubId(subHubs[0].id);
+    setSelectedSubHub(subHubs[0]);
   }, [subHubs]);
 
   useEffect(() => {
@@ -969,8 +1049,14 @@ export default function InventoryStockAdjustment() {
                       )}
 
                       {/* Existing batches collapsible */}
-                      {row.productId && activeBatches.length > 0 && (
-                        <ExistingBatchesCard batches={prodBatches} unit={row.unit} />
+                      {row.productId && prodBatches.length > 0 && (
+                        <ExistingBatchesCard
+                          batches={prodBatches}
+                          unit={row.unit}
+                          productId={row.productId}
+                          subHubId={selectedSubHubId}
+                          onReload={reload}
+                        />
                       )}
                     </div>
                   </div>
