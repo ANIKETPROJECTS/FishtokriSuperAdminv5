@@ -2667,28 +2667,22 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
             </div>
           </section>
 
-          {/* ── BATCHES ────────────────────────────────────── */}
+          {/* ── BATCHES (read-only) ─────────────────────────── */}
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 after:flex-1 after:h-px after:bg-gray-100 after:ml-2">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                 Stock Batches ({batches.length}){batchesTotal > 0 && <span className="text-blue-600 font-bold normal-case">— Total: {batchesTotal}</span>}
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  const autoNum = name.trim() ? generateNextBatchNumber(name, batches) : "";
-                  setBatches([...batches, { ...emptyBatch(), batchNumber: autoNum }]);
-                }}
-                className="text-xs text-[#1A56DB] font-semibold flex items-center gap-1 hover:underline ml-4 flex-shrink-0"
-              >
-                <Plus className="w-3 h-3" /> Add Batch
-              </button>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" /></svg>
+              Stock can only be updated from <strong className="mx-0.5">Inventory Management</strong>.
             </div>
             {batchesLoading ? (
               <div className="text-xs text-gray-400 py-3">Loading batches...</div>
             ) : batches.length === 0 ? (
               <div className="text-center py-5 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
-                No batches yet. Click "Add Batch" to track stock.
+                No batches recorded yet.
               </div>
             ) : (
               <div className="space-y-2">
@@ -2699,39 +2693,29 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
                         <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Batch #</label>
                         <Input
                           value={b.batchNumber}
-                          onChange={(e) => setBatches(batches.map((x, idx) => idx === i ? { ...x, batchNumber: e.target.value } : x))}
-                          placeholder="Auto-generated"
-                          className="h-8 text-xs font-mono"
+                          readOnly
+                          placeholder="—"
+                          className="h-8 text-xs font-mono bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Quantity *</label>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Quantity</label>
                         <Input
-                          type="number" min="0"
+                          type="number"
                           value={b.quantity}
-                          onChange={(e) => setBatches(batches.map((x, idx) => idx === i ? { ...x, quantity: e.target.value } : x))}
+                          readOnly
                           placeholder="0"
-                          className="h-8 text-xs"
+                          className="h-8 text-xs bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Shelf Life (days)</label>
                         <Input
-                          type="number" min="0"
+                          type="number"
                           value={b.shelfLifeDays}
-                          onChange={(e) => {
-                            const days = e.target.value;
-                            const base = b.receivedDate;
-                            let expiry = b.expiryDate;
-                            if (days !== "" && base) {
-                              const d = new Date(base);
-                              d.setDate(d.getDate() + Number(days));
-                              expiry = d.toISOString().slice(0, 10);
-                            }
-                            setBatches(batches.map((x, idx) => idx === i ? { ...x, shelfLifeDays: days, expiryDate: expiry } : x));
-                          }}
-                          placeholder="e.g. 3"
-                          className="h-8 text-xs"
+                          readOnly
+                          placeholder="—"
+                          className="h-8 text-xs bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -2741,18 +2725,8 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
                         <Input
                           type="date"
                           value={b.receivedDate}
-                          onChange={(e) => {
-                            const base = e.target.value;
-                            const days = b.shelfLifeDays;
-                            let expiry = b.expiryDate;
-                            if (base && days !== "") {
-                              const d = new Date(base);
-                              d.setDate(d.getDate() + Number(days));
-                              expiry = d.toISOString().slice(0, 10);
-                            }
-                            setBatches(batches.map((x, idx) => idx === i ? { ...x, receivedDate: base, expiryDate: expiry } : x));
-                          }}
-                          className="h-8 text-xs"
+                          readOnly
+                          className="h-8 text-xs bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                       <div className="space-y-1">
@@ -2760,30 +2734,21 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
                         <Input
                           type="date"
                           value={b.expiryDate}
-                          onChange={(e) => setBatches(batches.map((x, idx) => idx === i ? { ...x, expiryDate: e.target.value } : x))}
-                          className="h-8 text-xs"
+                          readOnly
+                          className="h-8 text-xs bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                     </div>
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1 space-y-1">
+                    {b.notes && (
+                      <div className="space-y-1">
                         <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
                         <Input
                           value={b.notes}
-                          onChange={(e) => setBatches(batches.map((x, idx) => idx === i ? { ...x, notes: e.target.value } : x))}
-                          placeholder="Optional notes..."
-                          className="h-8 text-xs"
+                          readOnly
+                          className="h-8 text-xs bg-gray-100 cursor-not-allowed"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setBatches(batches.filter((_, idx) => idx !== i))}
-                        className="h-8 px-2 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md border border-gray-200 transition-colors"
-                        title="Remove batch"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
