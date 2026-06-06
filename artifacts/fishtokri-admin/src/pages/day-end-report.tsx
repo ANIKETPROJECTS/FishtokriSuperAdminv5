@@ -215,9 +215,30 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   const stats = useMemo(() => {
     let cash = 0, upi = 0, wallet = 0, totalRev = 0, unpaid = 0;
     for (const o of orders) {
-      totalRev += o.total || 0;
+      const total = o.total || 0;
+      totalRev += total;
+
+      const statusLower = String(o.paymentStatus || "").toLowerCase();
+      const isUnpaid = statusLower === "unpaid";
+      const isPartial = statusLower === "partial";
+
+      // Accumulate unpaid dues
+      if (isUnpaid || isPartial) {
+        if (o.dueAmount != null && Number(o.dueAmount) >= 0) {
+          unpaid += Number(o.dueAmount);
+        } else if (o.paidAmount != null) {
+          unpaid += Math.max(0, total - Number(o.paidAmount));
+        } else if (isUnpaid) {
+          unpaid += total;
+        }
+      }
+
+      // For fully unpaid orders there's nothing actually collected — skip revenue split
+      if (isUnpaid) continue;
+
       const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
       if (pays.length > 0) {
+        // Use per-payment-entry amounts (most accurate)
         for (const p of pays) {
           const mode = String(p?.mode || "").toLowerCase();
           const amt = Number(p?.amount) || 0;
@@ -226,14 +247,15 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
           else if (mode === "wallet") wallet += amt;
         }
       } else {
+        // Fallback: split by paymentMode string for partial/paid orders
+        const paidAmt = isPartial
+          ? (o.paidAmount != null ? Number(o.paidAmount) : Math.max(0, total - unpaid))
+          : total;
         const mode = String(o.paymentMode || "").toLowerCase();
-        const amt = o.total || 0;
-        if (mode === "cash" || mode === "cod") cash += amt;
-        else if (mode === "upi") upi += amt;
-        else if (mode === "wallet") wallet += amt;
-      }
-      if (o.paymentStatus === "unpaid" || o.paymentStatus === "partial") {
-        unpaid += Number(o.dueAmount) || Math.max(0, (o.total || 0) - (Number(o.paidAmount) || 0));
+        if (mode === "cash" || mode === "cod") cash += paidAmt;
+        else if (mode === "upi") upi += paidAmt;
+        else if (mode === "wallet") wallet += paidAmt;
+        // mixed modes without a payments array — can't split accurately, skip
       }
     }
     return { cash, upi, wallet, totalRev, unpaid };

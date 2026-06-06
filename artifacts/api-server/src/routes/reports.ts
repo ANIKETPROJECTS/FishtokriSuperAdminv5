@@ -112,6 +112,12 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
           `${it.name} x${it.quantity}${it.unit ? " " + it.unit : ""}`
         ).join(", "),
         total: Number(o.total) || 0,
+        paidAmount: Number(o.paidAmount) ?? null,
+        dueAmount: Number(o.dueAmount) ?? null,
+        payments: payments.map((p: any) => ({
+          mode: String(p.mode || "").toLowerCase(),
+          amount: Number(p.amount) || 0,
+        })),
         deliveryPerson: o.assignedDeliveryPersonName || "—",
         paymentMode,
         paymentStatus,
