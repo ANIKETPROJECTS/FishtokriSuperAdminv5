@@ -50,7 +50,6 @@ const PAYMENT_MODES = [
   { value: "upi", label: "UPI", Icon: Smartphone },
   { value: "card", label: "Card", Icon: CreditCard },
   { value: "bank_transfer", label: "Bank Transfer", Icon: Landmark },
-  { value: "wallet", label: "Wallet", Icon: Wallet },
   { value: "other", label: "Other", Icon: Tag },
 ];
 
@@ -522,6 +521,7 @@ function OrdersList({ mode, refreshKey, silentRefreshKey, onCountChange }: { mod
     const orderTotalAmount = orderTotal(orderForPayment);
     const existingPaid = Number(orderForPayment.paidAmount) || 0;
     const existingPayments: any[] = Array.isArray(orderForPayment.payments) ? orderForPayment.payments : [];
+    const remainingDue = Math.max(0, orderTotalAmount - existingPaid);
 
     if (deliverPayStatus !== "unpaid") {
       const validEntries = deliverPayEntries.filter((p) => p.mode && Number(p.amount) > 0);
@@ -530,16 +530,6 @@ function OrdersList({ mode, refreshKey, silentRefreshKey, onCountChange }: { mod
         return;
       }
     }
-
-    const totalCollected = existingPaid + (deliverPayStatus === "unpaid" ? 0 : deliverPayPaidTotal);
-    const overpayment = Math.max(0, totalCollected - orderTotalAmount);
-    const recordedPaidTotal = Math.min(totalCollected, orderTotalAmount);
-
-    if (deliverPayStatus === "paid" && totalCollected < orderTotalAmount) {
-      toast({ title: "Payment mismatch", description: `Total collected (${formatRupees(totalCollected)}) is less than order total (${formatRupees(orderTotalAmount)}).`, variant: "destructive" });
-      return;
-    }
-
 
     const newEntries = deliverPayStatus === "unpaid"
       ? []
@@ -550,18 +540,27 @@ function OrdersList({ mode, refreshKey, silentRefreshKey, onCountChange }: { mod
         }));
     const mergedPayments = [...existingPayments, ...newEntries];
 
+    // Wallet adjustment: difference between what was collected and what was outstanding.
+    // Positive = credit customer wallet (overpaid). Negative = debit customer wallet (underpaid).
+    const walletAdjustment = deliverPayStatus === "unpaid" ? 0 : (deliverPayPaidTotal - remainingDue);
+
     setSaving(true);
     try {
       const payload: any = {
         status: "delivered",
-        paymentStatus: deliverPayStatus,
-        paidAmount: recordedPaidTotal,
+        paymentStatus: deliverPayStatus === "unpaid" ? "unpaid" : "paid",
+        paidAmount: deliverPayStatus === "unpaid" ? existingPaid : orderTotalAmount,
         paymentMode: mergedPayments[0]?.mode,
         payments: mergedPayments,
+        ...(walletAdjustment !== 0 ? { walletAdjustment } : {}),
       };
-      const orderForPayment = pendingDeliverOrder || selectedOrder;
       await apiFetch(`/api/orders/${orderForPayment._id}`, { method: "PUT", body: JSON.stringify(payload) });
-      toast({ title: "Marked as delivered", description: deliverPayStatus === "paid" ? "Payment recorded." : "No payment recorded." });
+      const walletMsg = walletAdjustment > 0
+        ? ` ₹${walletAdjustment.toFixed(0)} credited to customer wallet.`
+        : walletAdjustment < 0
+        ? ` ₹${Math.abs(walletAdjustment).toFixed(0)} debited from customer wallet.`
+        : "";
+      toast({ title: "Marked as delivered", description: deliverPayStatus === "paid" ? `Payment recorded.${walletMsg}` : "No payment recorded." });
       setDeliverPayOpen(false);
       setPendingDeliverOrder(null);
       setSelectedOrder(null);
@@ -1021,13 +1020,7 @@ function OrdersList({ mode, refreshKey, silentRefreshKey, onCountChange }: { mod
                         onClick={() =>
                           setDeliverPayEntries((arr) => [
                             ...arr,
-                            {
-                              mode: "cash",
-                              amount: Math.max(0, remainingDue - deliverPayPaidTotal) > 0
-                                ? String(remainingDue - deliverPayPaidTotal)
-                                : "",
-                              reference: "",
-                            },
+                            { mode: "cash", amount: "", reference: "" },
                           ])
                         }
                         className="flex items-center gap-1.5 px-4 h-10 rounded-2xl border-2 border-dashed border-black/20 text-sm font-semibold text-black hover:border-black/40 transition-colors"
@@ -1036,11 +1029,19 @@ function OrdersList({ mode, refreshKey, silentRefreshKey, onCountChange }: { mod
                       </button>
                       <div className="text-right text-sm">
                         <p className="font-semibold text-black">Collecting {formatRupees(deliverPayPaidTotal)}</p>
-                        <p className={`text-xs font-bold ${newDue > 0 ? "text-[#F59E0B]" : "text-[#10B981]"}`}>
-                          Due after: {formatRupees(newDue)}
-                        </p>
+                        <p className="text-xs font-bold text-[#10B981]">Due after: {formatRupees(0)}</p>
                       </div>
                     </div>
+                    {(() => {
+                      const adj = deliverPayPaidTotal - remainingDue;
+                      if (adj === 0) return null;
+                      return (
+                        <div className={`mt-3 px-4 py-2.5 rounded-2xl text-sm font-semibold flex items-center gap-2 ${adj > 0 ? "bg-[#10B981]/10 text-[#059669]" : "bg-[#F59E0B]/10 text-[#B45309]"}`}>
+                          <span>{adj > 0 ? "+" : "−"}₹{Math.abs(adj).toFixed(0)}</span>
+                          <span className="font-normal text-xs">{adj > 0 ? "will be credited to customer wallet" : "will be debited from customer wallet"}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

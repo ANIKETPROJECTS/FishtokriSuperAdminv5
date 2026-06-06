@@ -1273,6 +1273,7 @@ router.put("/:id", async (req: ScopedRequest, res) => {
       subtotal, discount, slotCharge, deliveryCharge, total,
       cancellationReason,
       walletTopup,
+      walletAdjustment,
     } = req.body;
     if (status !== undefined && !VALID_ORDER_STATUSES.has(String(status))) {
       res.status(400).json({ error: "ValidationError", message: `Invalid order status: ${status}` });
@@ -1434,6 +1435,24 @@ router.put("/:id", async (req: ScopedRequest, res) => {
       }
     } catch (e) {
       req.log.error({ err: e }, "Failed to sync inventory on order update");
+    }
+
+    // Handle explicit walletAdjustment: positive = credit to customer wallet, negative = debit.
+    // This is used when the collected amount differs from the outstanding amount at delivery.
+    if (walletAdjustment !== undefined && (result as any).customerId) {
+      const adj = Number(walletAdjustment) || 0;
+      if (adj !== 0) {
+        try {
+          const cCol = await getCustomersCollection();
+          await cCol.updateOne(
+            { _id: new mongoose.Types.ObjectId(String((result as any).customerId)) },
+            { $inc: { walletBalance: adj } }
+          );
+          req.log.info({ customerId: (result as any).customerId, walletAdjustment: adj }, "Wallet adjusted from delivery payment difference");
+        } catch (e) {
+          req.log.error({ err: e }, "Failed to apply walletAdjustment");
+        }
+      }
     }
 
     // Handle wallet payment entries: when "wallet" mode payments change, apply the delta to customer wallet.

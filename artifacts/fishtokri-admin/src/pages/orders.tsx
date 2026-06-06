@@ -851,7 +851,7 @@ export default function Orders() {
 
   // Payment-on-deliver dialog
   const [deliverPayOpen, setDeliverPayOpen] = useState(false);
-  const [deliverPayStatus, setDeliverPayStatus] = useState<"unpaid" | "partial" | "paid">("paid");
+  const [deliverPayStatus, setDeliverPayStatus] = useState<"unpaid" | "paid">("paid");
   const [deliverPayEntries, setDeliverPayEntries] = useState<{ mode: string; amount: string; reference: string }[]>([]);
 
   // Delivery assignment
@@ -1303,7 +1303,6 @@ export default function Orders() {
     { value: "upi", label: "UPI", Icon: Smartphone },
     { value: "card", label: "Card", Icon: CreditCard },
     { value: "bank_transfer", label: "Bank Transfer", Icon: Landmark },
-    { value: "wallet", label: "Wallet", Icon: Wallet },
     { value: "other", label: "Other", Icon: Tag },
   ];
 
@@ -1797,6 +1796,7 @@ export default function Orders() {
       : orderTotal(selectedOrder.items);
     const existingPaid = Number(selectedOrder.paidAmount) || 0;
     const existingPayments: any[] = Array.isArray(selectedOrder.payments) ? selectedOrder.payments : [];
+    const remainingDue = Math.max(0, orderTotalAmount - existingPaid);
 
     if (deliverPayStatus !== "unpaid") {
       const validEntries = deliverPayEntries.filter((p) => p.mode && Number(p.amount) > 0);
@@ -1804,19 +1804,6 @@ export default function Orders() {
         toast({ title: "Add payment details", description: "Enter at least one payment with mode and amount.", variant: "destructive" });
         return;
       }
-    }
-
-    const totalCollected = existingPaid + (deliverPayStatus === "unpaid" ? 0 : deliverPayPaidTotal);
-    const overpayment = Math.max(0, totalCollected - orderTotalAmount);
-    const recordedPaidTotal = Math.min(totalCollected, orderTotalAmount);
-
-    if (deliverPayStatus === "paid" && totalCollected < orderTotalAmount) {
-      toast({ title: "Payment mismatch", description: `Total collected (${formatRupees(totalCollected)}) is less than order total (${formatRupees(orderTotalAmount)}).`, variant: "destructive" });
-      return;
-    }
-    if (deliverPayStatus === "partial" && (totalCollected <= existingPaid || totalCollected >= orderTotalAmount)) {
-      toast({ title: "Invalid partial payment", description: `Paid amount must be between ₹0 and ${formatRupees(orderTotalAmount)}.`, variant: "destructive" });
-      return;
     }
 
     const newEntries = deliverPayStatus === "unpaid"
@@ -1828,23 +1815,33 @@ export default function Orders() {
         }));
     const mergedPayments = [...existingPayments, ...newEntries];
 
+    // Wallet adjustment: difference between what was collected and what was outstanding.
+    // Positive = credit customer wallet (overpaid). Negative = debit customer wallet (underpaid).
+    const walletAdjustment = deliverPayStatus === "unpaid" ? 0 : (deliverPayPaidTotal - remainingDue);
+
     setSavingStatus(true);
     try {
       const payload: any = {
         status: "delivered",
-        paymentStatus: deliverPayStatus,
-        paidAmount: recordedPaidTotal,
+        paymentStatus: deliverPayStatus === "unpaid" ? "unpaid" : "paid",
+        paidAmount: deliverPayStatus === "unpaid" ? existingPaid : orderTotalAmount,
         paymentMode: mergedPayments[0]?.mode,
         payments: mergedPayments,
+        ...(walletAdjustment !== 0 ? { walletAdjustment } : {}),
       };
       await apiFetch(`/api/orders/${selectedOrder._id}`, { method: "PUT", body: JSON.stringify(payload) });
-      toast({ title: "Marked as delivered", description: deliverPayStatus === "paid" ? "Payment recorded." : deliverPayStatus === "partial" ? "Partial payment recorded." : "No payment recorded." });
+      const walletMsg = walletAdjustment > 0
+        ? ` ₹${walletAdjustment.toFixed(0)} credited to customer wallet.`
+        : walletAdjustment < 0
+        ? ` ₹${Math.abs(walletAdjustment).toFixed(0)} debited from customer wallet.`
+        : "";
+      toast({ title: "Marked as delivered", description: deliverPayStatus === "paid" ? `Payment recorded.${walletMsg}` : "No payment recorded." });
       setSelectedOrder((o: any) => ({
         ...o,
         status: "delivered",
-        paymentStatus: deliverPayStatus,
-        paidAmount: recordedPaidTotal,
-        dueAmount: Math.max(0, orderTotalAmount - recordedPaidTotal),
+        paymentStatus: deliverPayStatus === "unpaid" ? "unpaid" : "paid",
+        paidAmount: deliverPayStatus === "unpaid" ? existingPaid : orderTotalAmount,
+        dueAmount: deliverPayStatus === "unpaid" ? remainingDue : 0,
         payments: mergedPayments,
       }));
       setDeliverPayOpen(false);
@@ -3926,16 +3923,14 @@ export default function Orders() {
 
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Payment Status</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {([
                       { v: "unpaid", label: "Unpaid", color: "amber" },
-                      { v: "partial", label: "Partial", color: "blue" },
                       { v: "paid", label: "Fully Paid", color: "emerald" },
                     ] as const).map((opt) => {
                       const active = deliverPayStatus === opt.v;
                       const colorMap: Record<string, string> = {
                         amber: active ? "border-amber-300 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:bg-gray-50",
-                        blue: active ? "border-blue-300 bg-blue-50 text-[#1A56DB]" : "border-gray-200 text-gray-500 hover:bg-gray-50",
                         emerald: active ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-500 hover:bg-gray-50",
                       };
                       return (
@@ -3948,7 +3943,7 @@ export default function Orders() {
                               setDeliverPayEntries([]);
                             } else if (deliverPayEntries.length === 0) {
                               setDeliverPayEntries([
-                                { mode: "cash", amount: opt.v === "paid" ? String(remainingDue) : "", reference: "" },
+                                { mode: "cash", amount: String(remainingDue), reference: "" },
                               ]);
                             } else if (opt.v === "paid") {
                               setDeliverPayEntries((arr) =>
@@ -4029,9 +4024,7 @@ export default function Orders() {
                             ...arr,
                             {
                               mode: "cash",
-                              amount: Math.max(0, remainingDue - deliverPayPaidTotal) > 0
-                                ? String(remainingDue - deliverPayPaidTotal)
-                                : "",
+                              amount: "",
                               reference: "",
                             },
                           ])
@@ -4042,14 +4035,20 @@ export default function Orders() {
                       </Button>
                       <div className="text-[11px] text-gray-500 flex items-center gap-3">
                         <span>Collecting: <span className="font-semibold text-gray-700">{formatRupees(deliverPayPaidTotal)}</span></span>
-                        <span>
-                          New due:{" "}
-                          <span className={`font-semibold ${newDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                            {formatRupees(newDue)}
-                          </span>
-                        </span>
+                        <span>New due: <span className="font-semibold text-emerald-600">{formatRupees(0)}</span></span>
                       </div>
                     </div>
+                    {(() => {
+                      const adj = deliverPayPaidTotal - remainingDue;
+                      if (adj === 0) return null;
+                      return (
+                        <div className={`mt-2 px-3 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 ${adj > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                          <span>{adj > 0 ? "+" : "−"}</span>
+                          <span>₹{Math.abs(adj).toFixed(0)}</span>
+                          <span className="font-normal">{adj > 0 ? "will be credited to customer wallet" : "will be debited from customer wallet"}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
