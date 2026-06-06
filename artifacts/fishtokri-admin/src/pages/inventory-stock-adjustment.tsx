@@ -110,8 +110,10 @@ function getTodayYYYYMMDD(): string {
 /**
  * Generates the next batch ID in the format: YYYYMMDD + ProductCode + PerProductSeq.
  *
- * The sequential number is PER-PRODUCT — it only counts existing batches
- * belonging to this specific product, so each product's sequence starts at 01.
+ * The sequential number is PER-PRODUCT and only considers batches that contain
+ * this product's own prefix code (new date-format batches like 20260530BACU01).
+ * Legacy batches in the old format (BATCH-001, BATCH-002) are ignored so they
+ * do not pollute the per-product counter.
  *
  * Examples:
  *   First batch of "Bangda Curry Cut" on 30 May 2026  → 20260530BACU01
@@ -124,10 +126,12 @@ function getTodayYYYYMMDD(): string {
 function generateNextBatchNumber(productName: string, productBatches: Batch[]): string {
   const prefix = generateBatchPrefix(productName);
   const today = getTodayYYYYMMDD();
-  // Find the highest trailing number among this product's existing batches.
+  // Only count batches that use the new date-prefix format for THIS product.
+  // This ignores legacy "BATCH-001" style entries which would otherwise
+  // make the counter appear to count globally across products.
   let maxNum = 0;
   for (const b of productBatches) {
-    if (b.batchNumber) {
+    if (b.batchNumber && b.batchNumber.includes(prefix)) {
       const match = b.batchNumber.match(/(\d+)$/);
       if (match) {
         const num = parseInt(match[1], 10);
