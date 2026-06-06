@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Download, Package, AlertCircle, ChevronDown, ChevronRight,
-  FileText, Printer, X,
+  Download, Package, ChevronDown, ChevronRight,
+  Printer, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -556,89 +557,85 @@ export default function DayEndReportPage() {
     fontFamily: "Poppins, sans-serif",
     color: "#000",
     background: "#fff",
-    height: 32,
+    height: 30,
   };
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#fff", ...POPPINS }}>
-      {/* ── Unified top header ── */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #ebebeb", padding: "14px 28px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+  const headerSlot = document.getElementById("page-header-slot");
 
-          {/* Left: title + subtitle + date pickers */}
-          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-            <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: "#000", margin: 0, lineHeight: 1.2 }}>Day End Report</h1>
-              <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0", fontWeight: 400 }}>Orders and inventory summary — download in Excel format</p>
-            </div>
+  const headerContent = (
+    <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", fontFamily: "Poppins, sans-serif" }}>
+      {/* Title */}
+      <h1 style={{ fontSize: 15, fontWeight: 700, color: "#000", margin: 0, whiteSpace: "nowrap", flexShrink: 0 }}>
+        Day End Report
+      </h1>
 
-            {/* Date range — only meaningful for orders tab, but always show */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: "#555" }}>From</label>
-              <input
-                type="date"
-                value={from}
-                onChange={e => setFrom(e.target.value)}
-                style={dateInputStyle}
-              />
-              <label style={{ fontSize: 12, fontWeight: 500, color: "#555" }}>To</label>
-              <input
-                type="date"
-                value={to}
-                onChange={e => setTo(e.target.value)}
-                style={dateInputStyle}
-              />
-            </div>
-          </div>
+      {/* Divider */}
+      <div style={{ width: 1, height: 20, background: "#e5e7eb", flexShrink: 0 }} />
 
-          {/* Right: tab buttons + download */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ display: "flex", background: "#f3f4f6", borderRadius: 10, padding: 3, gap: 2 }}>
-              {[
-                { key: "orders" as Tab, label: "Orders Report" },
-                { key: "inventory" as Tab, label: "Inventory Report" },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  style={{
-                    padding: "6px 16px",
-                    borderRadius: 8,
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    fontFamily: "Poppins, sans-serif",
-                    transition: "all 0.15s",
-                    background: activeTab === key ? "#fff" : "transparent",
-                    color: activeTab === key ? "#F05B4E" : "#666",
-                    boxShadow: activeTab === key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={handleDownload}
-              title="Download Excel"
-              style={{
-                width: 36, height: 36, borderRadius: 10, border: "1px solid #e5e7eb",
-                background: "#fff", cursor: "pointer", display: "flex", alignItems: "center",
-                justifyContent: "center", color: "#15803d", transition: "all 0.15s",
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f0fdf4"; (e.currentTarget as HTMLElement).style.borderColor = "#86efac"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#fff"; (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"; }}
-            >
-              <Download style={{ width: 16, height: 16 }} />
-            </button>
-          </div>
-        </div>
+      {/* Date range */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <label style={{ fontSize: 11, fontWeight: 500, color: "#888", whiteSpace: "nowrap" }}>From</label>
+        <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={dateInputStyle} />
+        <label style={{ fontSize: 11, fontWeight: 500, color: "#888", whiteSpace: "nowrap" }}>To</label>
+        <input type="date" value={to} onChange={e => setTo(e.target.value)} style={dateInputStyle} />
       </div>
 
-      {/* ── Content — full width, no blue bg wrapper ── */}
-      <div style={{ padding: "24px 28px" }}>
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Tab buttons */}
+      <div style={{ display: "flex", background: "#f3f4f6", borderRadius: 9, padding: 3, gap: 2, flexShrink: 0 }}>
+        {([
+          { key: "orders" as Tab, label: "Orders Report" },
+          { key: "inventory" as Tab, label: "Inventory Report" },
+        ] as { key: Tab; label: string }[]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            style={{
+              padding: "5px 14px",
+              borderRadius: 7,
+              border: "none",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: "Poppins, sans-serif",
+              transition: "all 0.15s",
+              background: activeTab === key ? "#fff" : "transparent",
+              color: activeTab === key ? "#F05B4E" : "#666",
+              boxShadow: activeTab === key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Download */}
+      <button
+        onClick={handleDownload}
+        title="Download Excel"
+        style={{
+          width: 34, height: 34, borderRadius: 9, border: "1px solid #e5e7eb",
+          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center",
+          justifyContent: "center", color: "#15803d", transition: "all 0.15s", flexShrink: 0,
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f0fdf4"; (e.currentTarget as HTMLElement).style.borderColor = "#86efac"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#fff"; (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"; }}
+      >
+        <Download style={{ width: 15, height: 15 }} />
+      </button>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Inject all controls into the layout's top white bar */}
+      {headerSlot && createPortal(headerContent, headerSlot)}
+
+      {/* Page content — no own header, no blue bg */}
+      <div style={{ padding: "24px 28px", background: "#fff", minHeight: "100vh", ...POPPINS }}>
         {activeTab === "orders" && (
           <OrdersReport
             from={from}
@@ -655,6 +652,6 @@ export default function DayEndReportPage() {
           />
         )}
       </div>
-    </div>
+    </>
   );
 }
