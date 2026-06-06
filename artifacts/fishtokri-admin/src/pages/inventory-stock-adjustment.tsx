@@ -61,6 +61,7 @@ type FormRow = {
   shelfLifeDays: string;
   expiryDate: string;
   batchNumber: string;
+  batchNotes: string;
   removeQuantity: string;
   selectedBatchId: string;
   search: string;
@@ -107,26 +108,25 @@ function getTodayYYYYMMDD(): string {
 }
 
 /**
- * Generates the next batch ID in the format: YYYYMMDD + ProductCode + GlobalSeq.
+ * Generates the next batch ID in the format: YYYYMMDD + ProductCode + PerProductSeq.
  *
- * The sequential number is a GLOBAL running counter across all products —
- * it never resets per day. Each new batch increments it by 1 regardless of
- * which product the batch belongs to.
+ * The sequential number is PER-PRODUCT — it only counts existing batches
+ * belonging to this specific product, so each product's sequence starts at 01.
  *
  * Examples:
- *   First ever batch of "Bangda Curry Cut" on 30 May 2026 → 20260530BACU01
- *   Next batch (any product) on 31 May 2026               → 20260531XXXX02
- *   Another batch same day                                 → 20260531XXXX03
+ *   First batch of "Bangda Curry Cut" on 30 May 2026  → 20260530BACU01
+ *   Second batch of "Bangda Curry Cut" on 31 May 2026 → 20260531BACU02
+ *   First batch of "Rawas Large" on same day           → 20260531RALA01
  *
- * @param productName  Name of the product (used to derive the 3-4 char code).
- * @param allBatches   ALL batches from ALL products — used to find the global max.
+ * @param productName     Name of the product (used to derive the 3-4 char code).
+ * @param productBatches  Only the batches belonging to THIS product.
  */
-function generateNextBatchNumber(productName: string, allBatches: Batch[]): string {
+function generateNextBatchNumber(productName: string, productBatches: Batch[]): string {
   const prefix = generateBatchPrefix(productName);
   const today = getTodayYYYYMMDD();
-  // Extract the trailing numeric part of every known batch number to find the global max.
+  // Find the highest trailing number among this product's existing batches.
   let maxNum = 0;
-  for (const b of allBatches) {
+  for (const b of productBatches) {
     if (b.batchNumber) {
       const match = b.batchNumber.match(/(\d+)$/);
       if (match) {
@@ -142,6 +142,7 @@ function emptyRow(): FormRow {
   return {
     productId: "", productName: "", category: "", unit: "", quantityBefore: 0,
     mode: "add", addQuantity: "", shelfLifeDays: "", expiryDate: "", batchNumber: "",
+    batchNotes: "",
     removeQuantity: "", selectedBatchId: "", search: "",
   };
 }
@@ -733,15 +734,15 @@ export default function InventoryStockAdjustment() {
   }
 
   function selectProduct(i: number, p: Product) {
-    // Pass ALL batches from ALL loaded products so the global sequence counter
-    // correctly reflects every batch ever created, not just this product's batches.
-    const allBatches: Batch[] = products.flatMap((prod) => prod.batches ?? []);
-    const autoNum = generateNextBatchNumber(p.name, allBatches);
+    // Only pass this product's own batches so the sequence counter is per-product.
+    const productBatches: Batch[] = p.batches ?? [];
+    const autoNum = generateNextBatchNumber(p.name, productBatches);
     setFormRows((rows) => rows.map((r, idx) => idx === i ? {
       ...r,
       productId: p.id, productName: p.name, category: p.category || "",
       unit: p.unit, quantityBefore: p.quantity, search: p.name,
       batchNumber: r.mode === "add" ? autoNum : "",
+      batchNotes: "",
       selectedBatchId: "",
     } : r));
   }
@@ -758,11 +759,12 @@ export default function InventoryStockAdjustment() {
     const row = formRows[i];
     let batchNumber = "";
     if (mode === "add" && row.productId) {
-      // Use all batches from all products for the global sequential counter.
-      const allBatches: Batch[] = products.flatMap((prod) => prod.batches ?? []);
-      batchNumber = generateNextBatchNumber(row.productName, allBatches);
+      // Only use this product's own batches for per-product sequential counter.
+      const prod = products.find((p) => p.id === row.productId);
+      const productBatches: Batch[] = prod?.batches ?? [];
+      batchNumber = generateNextBatchNumber(row.productName, productBatches);
     }
-    updateRow(i, { mode, batchNumber, selectedBatchId: "" });
+    updateRow(i, { mode, batchNumber, batchNotes: "", selectedBatchId: "" });
   }
 
   function setShelfLife(i: number, val: string) {
@@ -824,6 +826,7 @@ export default function InventoryStockAdjustment() {
               shelfLifeDays: r.shelfLifeDays !== "" ? Number(r.shelfLifeDays) : undefined,
               expiryDate: r.expiryDate || undefined,
               batchNumber: r.batchNumber || undefined,
+              notes: r.batchNotes || undefined,
             };
             if (r.mode === "add_existing") return {
               productId: r.productId, mode: "add_existing",
@@ -1069,9 +1072,9 @@ export default function InventoryStockAdjustment() {
                         ) : null}
                       </div>
 
-                      {/* Batch number row for new batch mode only */}
+                      {/* Batch number + notes row for new batch mode only */}
                       {isAdd && row.productId && (
-                        <div className="mt-3 flex items-center gap-3">
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
                           <div className="flex items-center gap-2">
                             <Hash className="w-3.5 h-3.5 text-[#364F9F]" />
                             <label className="text-[10px] font-bold text-[#364F9F] uppercase tracking-wider">Batch ID</label>
@@ -1083,7 +1086,16 @@ export default function InventoryStockAdjustment() {
                             placeholder="Auto-generated"
                             className="w-36 h-8 px-3 text-xs font-bold text-[#364F9F] border border-[#364F9F]/30 bg-[#364F9F]/5 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] uppercase tracking-wider"
                           />
-                          <span className="text-[10px] text-gray-400">Auto-generated from product name · editable</span>
+                          <span className="text-[10px] text-gray-400">Auto-generated · editable</span>
+                          <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Batch Notes</label>
+                          <input
+                            type="text"
+                            value={row.batchNotes}
+                            onChange={(e) => updateRow(idx, { batchNotes: e.target.value })}
+                            placeholder="Optional notes for this batch..."
+                            className="flex-1 min-w-[160px] h-8 px-3 text-xs text-gray-700 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
+                          />
                         </div>
                       )}
 
