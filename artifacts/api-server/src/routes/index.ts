@@ -15,6 +15,7 @@ import retailInvoicesRouter from "./retail-invoices";
 import bankingRouter from "./banking";
 import inventoryRouter from "./inventory";
 import deliveryReportRouter from "./delivery-report";
+import reportsRouter from "./reports";
 import qzRouter from "./qz";
 
 const router: IRouter = Router();
@@ -35,6 +36,7 @@ router.use("/retail-invoices", retailInvoicesRouter);
 router.use("/banking", bankingRouter);
 router.use("/inventory", inventoryRouter);
 router.use("/delivery-report", deliveryReportRouter);
+router.use("/reports", reportsRouter);
 router.use(qzRouter);
 
 export default router;
