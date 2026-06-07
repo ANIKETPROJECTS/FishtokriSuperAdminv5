@@ -215,6 +215,7 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   const stats = useMemo(() => {
     let cash = 0, upi = 0, wallet = 0, totalRev = 0, unpaid = 0;
     for (const o of orders) {
+      if (String(o.orderStatus || o.status || "").toLowerCase() === "cancelled") continue;
       const total = o.total || 0;
       totalRev += total;
 
