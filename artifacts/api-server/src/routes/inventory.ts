@@ -419,6 +419,7 @@ router.get("/products", async (req, res) => {
         return {
           id: String(p._id),
           name: p.name,
+          shortCode: p.shortCode ?? "",
           category: p.category ?? "",
           subCategory: p.subCategory ?? "",
           unit: p.unit ?? "",
