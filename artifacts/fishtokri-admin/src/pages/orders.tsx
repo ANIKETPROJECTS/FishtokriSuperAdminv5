@@ -1162,15 +1162,15 @@ export default function Orders() {
     setOriginalSavedAddress(fresh);
   }, [selectedAddressIdx, chosenCustomer]);
 
-  // Poll timeslot counts every 5 s while the create-order panel is open so
-  // full slots disappear automatically without a page refresh.
+  // Poll timeslot counts every 1 s while the create-order panel is open so
+  // changes in the DB appear without a page refresh.
   useEffect(() => {
     if (!isCreatePage || !selectedSubHubId) return;
     const id = setInterval(() => {
       apiFetch(`/api/sub-hubs/${selectedSubHubId}/menu/timeslots`)
         .then((d) => setTimeslots(d.timeslots ?? []))
         .catch(() => {/* silent – keep existing list */});
-    }, 5000);
+    }, 1000);
     return () => clearInterval(id);
   }, [isCreatePage, selectedSubHubId]);
 
