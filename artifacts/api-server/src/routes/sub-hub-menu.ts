@@ -101,7 +101,7 @@ router.post("/products", async (req, res) => {
     const ctx = await getSubHubDb(req.params.id, res, req as ScopedRequest);
     if (!ctx) return;
     const {
-      name, description, category, subCategory,
+      name, description, category, subCategory, shortCode,
       price, originalPrice, discountPct, unit, weight, grossWeight, netWeight, pieces, serves, quantity,
       status, isArchived, imageUrl, limitedStockNote, lowStockThreshold,
       recipes, sectionId, couponIds,
@@ -114,6 +114,7 @@ router.post("/products", async (req, res) => {
       description: description ?? "",
       category: category ?? "",
       subCategory: subCategory ?? "",
+      shortCode: shortCode ?? "",
       price: p,
       originalPrice: op,
       discountPct: Number(discountPct) || (op > p ? Math.round(((op - p) / op) * 100) : 0),
@@ -150,7 +151,7 @@ router.put("/products/:productId", async (req, res) => {
     const oid = toId(req.params.productId);
     if (!oid) { res.status(400).json({ error: "InvalidId", message: "Invalid product ID" }); return; }
     const {
-      name, description, category, subCategory,
+      name, description, category, subCategory, shortCode,
       price, originalPrice, discountPct, unit, weight, grossWeight, netWeight, pieces, serves, quantity,
       status, isArchived, imageUrl, limitedStockNote, lowStockThreshold,
       recipes, sectionId, couponIds,
@@ -160,6 +161,7 @@ router.put("/products/:productId", async (req, res) => {
     if (description !== undefined) update.description = description;
     if (category !== undefined) update.category = category;
     if (subCategory !== undefined) update.subCategory = subCategory;
+    if (shortCode !== undefined) update.shortCode = shortCode;
     if (price !== undefined) update.price = Number(price) || 0;
     if (originalPrice !== undefined) update.originalPrice = Number(originalPrice) || 0;
     if (discountPct !== undefined) update.discountPct = Number(discountPct) || 0;

@@ -1189,10 +1189,19 @@ export default function Orders() {
         return target === "" ? c === "" : c === target;
       });
     }
-    if (!q) return list;
-    return list.filter((p) =>
-      [p.name, p.category, p.subCategory].some((v) => String(v ?? "").toLowerCase().includes(q))
-    );
+    if (q) {
+      list = list.filter((p) =>
+        [p.name, p.category, p.subCategory, p.shortCode].some((v) => String(v ?? "").toLowerCase().includes(q))
+      );
+    }
+    // In-stock products first, then out-of-stock
+    return [...list].sort((a, b) => {
+      const aStock = Number(a.quantity) || 0;
+      const bStock = Number(b.quantity) || 0;
+      if (aStock > 0 && bStock <= 0) return -1;
+      if (aStock <= 0 && bStock > 0) return 1;
+      return 0;
+    });
   }, [subHubProducts, productSearch, pickerCategory]);
 
   const filteredCategories = useMemo(() => {

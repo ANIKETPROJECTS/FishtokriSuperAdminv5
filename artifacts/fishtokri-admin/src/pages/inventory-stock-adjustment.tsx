@@ -47,7 +47,7 @@ type Batch = {
   expiryDate: string | null;
   notes: string;
 };
-type Product = { id: string; name: string; category: string; unit: string; quantity: number; batches?: Batch[] };
+type Product = { id: string; name: string; shortCode?: string; category: string; unit: string; quantity: number; batches?: Batch[] };
 
 type FormMode = "add" | "remove" | "add_existing";
 type FormRow = {
@@ -110,28 +110,23 @@ function getTodayYYYYMMDD(): string {
 /**
  * Generates the next batch ID in the format: YYYYMMDD + ProductCode + PerProductSeq.
  *
- * The sequential number is PER-PRODUCT and only considers batches that contain
- * this product's own prefix code (new date-format batches like 20260530BACU01).
- * Legacy batches in the old format (BATCH-001, BATCH-002) are ignored so they
- * do not pollute the per-product counter.
+ * If the product has a shortCode it is used directly as the prefix instead of
+ * deriving one from the product name.
  *
- * Examples:
- *   First batch of "Bangda Curry Cut" on 30 May 2026  → 20260530BACU01
- *   Second batch of "Bangda Curry Cut" on 31 May 2026 → 20260531BACU02
- *   First batch of "Rawas Large" on same day           → 20260531RALA01
+ * Examples (shortCode "CBB"):
+ *   First batch on 30 May 2026  → 20260530CBB01
+ *   Second batch on 31 May 2026 → 20260531CBB02
  *
- * @param productName     Name of the product (used to derive the 3-4 char code).
+ * @param productName     Name of the product (fallback prefix source).
  * @param productBatches  Only the batches belonging to THIS product.
+ * @param shortCode       Optional short code — used as prefix when provided.
  */
-function generateNextBatchNumber(productName: string, productBatches: Batch[]): string {
-  const prefix = generateBatchPrefix(productName);
+function generateNextBatchNumber(productName: string, productBatches: Batch[], shortCode?: string): string {
+  const prefix = shortCode && shortCode.trim() ? shortCode.trim().toUpperCase() : generateBatchPrefix(productName);
   const today = getTodayYYYYMMDD();
-  // Only count batches that use the new date-prefix format for THIS product.
-  // This ignores legacy "BATCH-001" style entries which would otherwise
-  // make the counter appear to count globally across products.
   let maxNum = 0;
   for (const b of productBatches) {
-    if (b.batchNumber && b.batchNumber.includes(prefix)) {
+    if (b.batchNumber && b.batchNumber.toUpperCase().includes(prefix)) {
       const match = b.batchNumber.match(/(\d+)$/);
       if (match) {
         const num = parseInt(match[1], 10);
@@ -740,7 +735,7 @@ export default function InventoryStockAdjustment() {
   function selectProduct(i: number, p: Product) {
     // Only pass this product's own batches so the sequence counter is per-product.
     const productBatches: Batch[] = p.batches ?? [];
-    const autoNum = generateNextBatchNumber(p.name, productBatches);
+    const autoNum = generateNextBatchNumber(p.name, productBatches, p.shortCode);
     setFormRows((rows) => rows.map((r, idx) => idx === i ? {
       ...r,
       productId: p.id, productName: p.name, category: p.category || "",
@@ -766,7 +761,7 @@ export default function InventoryStockAdjustment() {
       // Only use this product's own batches for per-product sequential counter.
       const prod = products.find((p) => p.id === row.productId);
       const productBatches: Batch[] = prod?.batches ?? [];
-      batchNumber = generateNextBatchNumber(row.productName, productBatches);
+      batchNumber = generateNextBatchNumber(row.productName, productBatches, prod?.shortCode);
     }
     updateRow(i, { mode, batchNumber, batchNotes: "", selectedBatchId: "" });
   }

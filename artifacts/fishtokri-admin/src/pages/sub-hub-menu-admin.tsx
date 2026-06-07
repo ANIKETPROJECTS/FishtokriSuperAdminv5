@@ -124,14 +124,14 @@ function generateBatchPrefix(productName: string): string {
   return (words[0].slice(0, 2) + words[1].slice(0, 2)).padEnd(4, "X");
 }
 
-function generateNextBatchNumber(productName: string, existingBatches: { batchNumber: string }[]): string {
-  const prefix = generateBatchPrefix(productName);
+function generateNextBatchNumber(productName: string, existingBatches: { batchNumber: string }[], shortCode?: string): string {
+  const prefix = shortCode && shortCode.trim() ? shortCode.trim().toUpperCase() : generateBatchPrefix(productName);
   let maxNum = 0;
   for (const b of existingBatches) {
     if (b.batchNumber) {
       const bn = b.batchNumber.toUpperCase();
-      if (bn.startsWith(prefix)) {
-        const num = parseInt(bn.slice(prefix.length), 10);
+      if (bn.includes(prefix)) {
+        const num = parseInt(bn.slice(bn.lastIndexOf(prefix) + prefix.length), 10);
         if (!isNaN(num) && num > maxNum) maxNum = num;
       }
     }
@@ -2555,6 +2555,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
   const isEditing = !!product;
 
   const [name, setName] = useState("");
+  const [shortCode, setShortCode] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
@@ -2593,6 +2594,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
     }).catch(() => {});
     if (product) {
       setName(product.name ?? "");
+      setShortCode(product.shortCode ?? "");
       setDescription(product.description ?? "");
       setCategory(product.category ?? "");
       setSubCategory(product.subCategory ?? "");
@@ -2634,7 +2636,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
         .catch(() => setBatches([]))
         .finally(() => setBatchesLoading(false));
     } else {
-      setName(""); setDescription(""); setCategory(""); setSubCategory("");
+      setName(""); setShortCode(""); setDescription(""); setCategory(""); setSubCategory("");
       setPrice(""); setOriginalPrice(""); setUnit("per kg");
       setGrossWeight(""); setNetWeight(""); setPieces(""); setServes(""); setQuantity("0"); setStatus("available");
       setIsArchived(false); setProductImageUrl(""); setProductImageMode("url"); setRecipes([]);
@@ -2696,7 +2698,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
       method: r.method.filter((s: string) => s.trim()),
     }));
     const payload = {
-      name, description, category, subCategory,
+      name, shortCode, description, category, subCategory,
       price: Number(price) || 0,
       originalPrice: Number(originalPrice) || Number(price) || 0,
       discountPct,
@@ -2738,6 +2740,10 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2 after:flex-1 after:h-px after:bg-gray-100">Basic Info</p>
             <div className="space-y-3">
               <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Product Name *</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chicken Curry Cut" className="h-9" /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-600">Short Code <span className="font-normal text-gray-400">(used as batch prefix &amp; POS search)</span></Label>
+                <Input value={shortCode} onChange={(e) => setShortCode(e.target.value.toUpperCase())} placeholder="e.g. CBB" className="h-9 font-mono uppercase" />
+              </div>
               <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Description</Label><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe this product..." className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB]/30 outline-none resize-none h-16" /></div>
               <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Category</Label>
                 <Popover open={categoryDropdownOpen} onOpenChange={setCategoryDropdownOpen}>
