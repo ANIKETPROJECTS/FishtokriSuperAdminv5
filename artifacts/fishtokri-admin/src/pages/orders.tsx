@@ -1098,6 +1098,17 @@ export default function Orders() {
     return () => clearInterval(id);
   }, [isCreatePage, selectedSubHubId]);
 
+  // Poll products every 3 s so stock/price changes in the DB appear without a page refresh.
+  useEffect(() => {
+    if (!isCreatePage || !selectedSubHubId) return;
+    const id = setInterval(() => {
+      apiFetch(`/api/sub-hubs/${selectedSubHubId}/menu/products`)
+        .then((d) => setSubHubProducts(d.products ?? []))
+        .catch(() => {/* silent – keep existing list */});
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isCreatePage, selectedSubHubId]);
+
   const activeCoupons = useMemo(() => {
     const now = Date.now();
     const customerActiveCoupons: any[] = chosenCustomer?.activeCoupons ?? [];
