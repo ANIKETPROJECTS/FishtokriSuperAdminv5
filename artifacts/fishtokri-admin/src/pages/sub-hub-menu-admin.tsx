@@ -860,16 +860,15 @@ function ProductsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: (
 
   const catOptions = [{ value: "all", label: "All Categories" }, ...categories.map((c) => ({ value: c.name, label: c.name }))];
   const filterGroups: FilterGroup[] = [
-    { key: "status", label: "Status", options: [{ value: "all", label: "All" }, { value: "available", label: "Available" }, { value: "out_of_stock", label: "Out of Stock" }, { value: "archived", label: "Archived" }] },
+    { key: "status", label: "Status", options: [{ value: "all", label: "All" }, { value: "available", label: "Available" }, { value: "out_of_stock", label: "Out of Stock" }] },
     { key: "category", label: "Category", options: catOptions },
   ];
 
   const processed = useMemo(() => {
     let items = [...products];
     if (search) items = items.filter((p) => [p.name, p.category, p.subCategory, p.description].filter(Boolean).some((f: string) => f.toLowerCase().includes(search.toLowerCase())));
-    if (filters.status === "available") items = items.filter((p) => p.status === "available" && !p.isArchived);
-    if (filters.status === "out_of_stock") items = items.filter((p) => p.status === "out_of_stock");
-    if (filters.status === "archived") items = items.filter((p) => p.isArchived === true);
+    if (filters.status === "available") items = items.filter((p) => !p.isArchived && (Number(p.quantity) || 0) > 0);
+    if (filters.status === "out_of_stock") items = items.filter((p) => !p.isArchived && (Number(p.quantity) || 0) <= 0);
     if (filters.category !== "all") items = items.filter((p) => p.category === filters.category);
     items.sort((a, b) => {
       if (sortValue === "name_asc") return (a.name ?? "").localeCompare(b.name ?? "");
