@@ -939,6 +939,10 @@ export default function Orders() {
   // When populating from an existing order, skip the payment-recompute effect once
   // so the saved payment entries aren't overwritten by the derived logic.
   const skipPaymentRecomputeRef = useRef(false);
+  // Prevents the pincodeDeliveryCharge sync effect from overwriting a value
+  // that was manually restored when loading an existing order for editing.
+  const skipDeliveryChargeSyncRef = useRef(false);
+  const [savingAddress, setSavingAddress] = useState(false);
 
   const resetCreateForm = useCallback(() => {
     setCustomerMode("existing");
@@ -1340,8 +1344,13 @@ export default function Orders() {
     if (!isOutstationNeeded) setIsOutstationDelivery(false);
   }, [isOutstationNeeded]);
 
-  // Sync delivery charge input from pincode-based charge whenever it changes
+  // Sync delivery charge input from pincode-based charge whenever it changes,
+  // unless we just restored it from an existing order (skipDeliveryChargeSyncRef).
   useEffect(() => {
+    if (skipDeliveryChargeSyncRef.current) {
+      skipDeliveryChargeSyncRef.current = false;
+      return;
+    }
     setDeliveryChargeInput(pincodeDeliveryCharge > 0 ? String(pincodeDeliveryCharge) : "");
   }, [pincodeDeliveryCharge]);
 
@@ -2139,6 +2148,13 @@ export default function Orders() {
     setOrderScheduleType("slot");
     if (o.deliveryDate) setOrderDate(String(o.deliveryDate).slice(0, 10));
     if (o.timeslotId) setSelectedTimeslotId(String(o.timeslotId));
+    // Restore delivery charge override + extra discount from saved order.
+    // Set the skip ref so the pincodeDeliveryCharge sync effect doesn't overwrite it.
+    skipDeliveryChargeSyncRef.current = true;
+    const savedDeliveryCharge = Number(o.deliveryCharge);
+    setDeliveryChargeInput(savedDeliveryCharge > 0 ? String(savedDeliveryCharge) : "");
+    const savedExtraDiscount = Number(o.extraDiscount);
+    setExtraDiscount(savedExtraDiscount > 0 ? String(savedExtraDiscount) : "");
   }, [allCustomers]);
 
   const openEditOrder = (o: any) => {
@@ -3254,13 +3270,52 @@ export default function Orders() {
                         </div>
                       ) : (
                         /* Full editable form for the selected address */
-                        <div className="grid grid-cols-2 gap-x-2 gap-y-0">
-                          <Input value={editedSavedAddress.name} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
-                          <Input value={editedSavedAddress.phone} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
-                          <Input value={editedSavedAddress.building} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat *" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
-                          <Input value={editedSavedAddress.street} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
-                          <Input value={editedSavedAddress.area} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
-                          <Input value={editedSavedAddress.pincode} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                        <div className="space-y-0">
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                            <Input value={editedSavedAddress.name} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.phone} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                            <Input value={editedSavedAddress.building} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat *" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.street} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.area} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.pincode} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                          </div>
+                          {/* Save / Cancel for saved address */}
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              type="button"
+                              disabled={savingAddress}
+                              onClick={async () => {
+                                if (!chosenCustomer?.id) return;
+                                setSavingAddress(true);
+                                try {
+                                  const currentAddresses = Array.isArray(chosenCustomer.addresses) ? [...chosenCustomer.addresses] : [];
+                                  const f = editedSavedAddress;
+                                  currentAddresses[selectedAddressIdx] = { ...(currentAddresses[selectedAddressIdx] ?? {}), label: f.label, name: f.name, phone: f.phone, building: f.building, street: f.street, area: f.area, landmark: f.landmark, pincode: f.pincode, city: f.city, state: f.state };
+                                  await apiFetch(`/api/customers/${chosenCustomer.id}`, { method: "PUT", body: JSON.stringify({ addresses: currentAddresses }) });
+                                  setChosenCustomer((c: any) => ({ ...c, addresses: currentAddresses }));
+                                  toast({ title: "Address saved" });
+                                } catch {
+                                  toast({ title: "Failed to save address", variant: "destructive" });
+                                } finally {
+                                  setSavingAddress(false);
+                                }
+                              }}
+                              className="flex-1 h-7 rounded-lg bg-[#1A56DB] text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            >
+                              {savingAddress ? "Saving…" : "Save Address"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const a = (chosenCustomer?.addresses ?? [])[selectedAddressIdx];
+                                const f = getAddressFields(a);
+                                if (f) setEditedSavedAddress({ label: f.label || "Home", name: f.contactName || "", phone: f.phone || "", building: [f.houseNo, f.building].filter(Boolean).join(", ") || "", street: f.street || "", area: f.area || "", landmark: f.landmark || "", pincode: f.pincode || "", city: f.city || "", state: f.state || "" });
+                              }}
+                              className="flex-1 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs font-semibold hover:bg-gray-50 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3278,6 +3333,41 @@ export default function Orders() {
                         <Input value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
                         <Input value={newAddress.area} onChange={(e) => setNewAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
                         <Input value={newAddress.pincode} onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                      </div>
+                      {/* Save to Profile / Clear buttons for new address */}
+                      <div className="flex gap-2 pt-1">
+                        {chosenCustomer?.id && (
+                          <button
+                            type="button"
+                            disabled={savingAddress || !newAddress.building.trim() || !newAddress.area.trim() || !newAddress.pincode.trim()}
+                            onClick={async () => {
+                              if (!chosenCustomer?.id) return;
+                              setSavingAddress(true);
+                              try {
+                                const currentAddresses = Array.isArray(chosenCustomer.addresses) ? [...chosenCustomer.addresses] : [];
+                                const entry = { label: newAddress.label || "Home", name: newAddress.name, phone: newAddress.phone, building: newAddress.building, street: newAddress.street, area: newAddress.area, pincode: newAddress.pincode };
+                                const updated = [...currentAddresses, entry];
+                                await apiFetch(`/api/customers/${chosenCustomer.id}`, { method: "PUT", body: JSON.stringify({ addresses: updated }) });
+                                setChosenCustomer((c: any) => ({ ...c, addresses: updated }));
+                                toast({ title: "Address saved to profile" });
+                              } catch {
+                                toast({ title: "Failed to save address", variant: "destructive" });
+                              } finally {
+                                setSavingAddress(false);
+                              }
+                            }}
+                            className="flex-1 h-7 rounded-lg bg-[#1A56DB] text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                          >
+                            {savingAddress ? "Saving…" : "Save to Profile"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setNewAddress({ label: "Home", name: "", phone: "", building: "", street: "", area: "", pincode: "" })}
+                          className="flex-1 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs font-semibold hover:bg-gray-50 transition-colors"
+                        >
+                          Clear
+                        </button>
                       </div>
                     </div>
                   )}
@@ -3706,13 +3796,15 @@ export default function Orders() {
                   </ul>
                   {(() => {
                     const subtotal = Number(selectedOrder.subtotal) > 0 ? Number(selectedOrder.subtotal) : orderTotal(selectedOrder.items);
-                    const discount = Number(selectedOrder.discount) || 0;
+                    const totalDiscount = Number(selectedOrder.discount) || 0;
+                    const extraDiscountAmt = Number(selectedOrder.extraDiscount) || 0;
+                    const couponOnlyDiscount = Math.max(0, totalDiscount - extraDiscountAmt);
                     const slot = Number(selectedOrder.slotCharge) || 0;
                     const instant = Number(selectedOrder.instantDeliveryCharge) || 0;
                     const grand = effectiveOrderTotal(selectedOrder);
                     // Use stored deliveryCharge; if absent, infer from the gap in the total
                     const storedDelivery = Number(selectedOrder.deliveryCharge) || 0;
-                    const delivery = storedDelivery || Math.max(0, grand - Math.max(0, subtotal - discount + slot + instant));
+                    const delivery = storedDelivery || Math.max(0, grand - Math.max(0, subtotal - totalDiscount + slot + instant));
                     const pays: any[] = Array.isArray(selectedOrder.payments) ? selectedOrder.payments : [];
                     const walletPay = pays.find((p: any) => String(p?.mode || "").toLowerCase() === "wallet");
                     const walletUsed = walletPay ? Number(walletPay.amount) || 0 : 0;
@@ -3722,10 +3814,16 @@ export default function Orders() {
                           <span>Subtotal</span>
                           <span>{formatRupees(subtotal)}</span>
                         </div>
-                        {discount > 0 && (
+                        {couponOnlyDiscount > 0 && (
                           <div className="flex justify-between text-sm font-semibold">
                             <span className="text-emerald-600">Coupon{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ""}</span>
-                            <span className="text-emerald-600">− {formatRupees(discount)}</span>
+                            <span className="text-emerald-600">− {formatRupees(couponOnlyDiscount)}</span>
+                          </div>
+                        )}
+                        {extraDiscountAmt > 0 && (
+                          <div className="flex justify-between text-sm font-semibold">
+                            <span className="text-emerald-600">Extra discount</span>
+                            <span className="text-emerald-600">− {formatRupees(extraDiscountAmt)}</span>
                           </div>
                         )}
                         {slot > 0 && (

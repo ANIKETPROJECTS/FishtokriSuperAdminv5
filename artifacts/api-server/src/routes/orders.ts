@@ -833,6 +833,8 @@ router.post("/", async (req: ScopedRequest, res) => {
       subtotal,
       discount,
       slotCharge,
+      deliveryCharge,
+      extraDiscount,
       total: totalIn,
       couponId,
       couponCode,
@@ -945,9 +947,11 @@ router.post("/", async (req: ScopedRequest, res) => {
     const subTotalNum = Number.isFinite(sub) && sub > 0 ? sub : computedSubtotal;
     const discountNum = Math.max(0, Number(discount) || 0);
     const slotChargeNum = Math.max(0, Number(slotCharge) || 0);
+    const deliveryChargeNum = Math.max(0, Number(deliveryCharge) || 0);
+    const extraDiscountNum = Math.max(0, Number(extraDiscount) || 0);
     const totalNum = Number.isFinite(Number(totalIn)) && Number(totalIn) > 0
       ? Number(totalIn)
-      : Math.max(0, subTotalNum - discountNum + slotChargeNum);
+      : Math.max(0, subTotalNum - discountNum + slotChargeNum + deliveryChargeNum);
 
     const orderDoc: any = {
       customerId: resolvedCustomerId ?? undefined,
@@ -958,6 +962,8 @@ router.post("/", async (req: ScopedRequest, res) => {
       subtotal: subTotalNum,
       discount: discountNum,
       slotCharge: slotChargeNum,
+      deliveryCharge: deliveryChargeNum,
+      extraDiscount: extraDiscountNum,
       total: totalNum,
       deliveryType: dt,
       address: dt === "delivery" ? String(address ?? "").trim() : "",
@@ -1270,7 +1276,7 @@ router.put("/:id", async (req: ScopedRequest, res) => {
       superHubId, superHubName, subHubId, subHubName,
       scheduleType, deliveryDate, timeslotId, timeslotLabel, timeslotStart, timeslotEnd,
       couponId, couponCode, couponTitle, couponIds, couponCodes, coupons,
-      subtotal, discount, slotCharge, deliveryCharge, total,
+      subtotal, discount, slotCharge, deliveryCharge, extraDiscount, total,
       cancellationReason,
       walletTopup,
       walletAdjustment,
@@ -1311,6 +1317,7 @@ router.put("/:id", async (req: ScopedRequest, res) => {
     if (discount !== undefined) update.discount = Number(discount) || 0;
     if (slotCharge !== undefined) update.slotCharge = Number(slotCharge) || 0;
     if (deliveryCharge !== undefined) update.deliveryCharge = Number(deliveryCharge) || 0;
+    if (extraDiscount !== undefined) update.extraDiscount = Number(extraDiscount) || 0;
     if (total !== undefined) update.total = Number(total) || 0;
     if (cancellationReason !== undefined) {
       update.cancellationReason = cancellationReason ? String(cancellationReason).trim().slice(0, 500) : "";
