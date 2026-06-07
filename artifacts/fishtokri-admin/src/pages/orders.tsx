@@ -1594,6 +1594,20 @@ export default function Orders() {
         toast({ title: "Pincode not serviceable", description: `Pincode ${deliveryPincode} is outside our service area. Enable "Outstation Delivery" in the address section to proceed.`, variant: "destructive" });
         return;
       }
+    } else if (orderDeliveryType === "takeaway") {
+      // Address is optional for takeaway — only resolve if something was filled in
+      if (chosenCustomer && orderAddressMode === "saved" && selectedAddressIdx !== null) {
+        const f = editedSavedAddress;
+        if (f.building.trim()) {
+          address = [f.building, f.street, f.area, f.landmark, f.city, f.state, f.pincode].filter(Boolean).join(", ");
+          deliveryArea = f.area || f.city || "";
+          deliveryAddressDetail = { label: f.label, name: f.name, phone: f.phone, building: f.building, street: f.street, area: f.area, landmark: f.landmark, pincode: f.pincode, city: f.city, state: f.state };
+        }
+      } else if (newAddress.building.trim()) {
+        address = formatAddressOneLine(newAddress);
+        deliveryArea = newAddress.area || "";
+        deliveryAddressDetail = { label: newAddress.label, type: (newAddress.label || "Home").toLowerCase(), name: newAddress.name.trim(), phone: newAddress.phone.trim(), building: newAddress.building.trim(), street: newAddress.street.trim(), area: newAddress.area.trim(), pincode: newAddress.pincode.trim() };
+      }
     }
 
     const superHub = superHubs.find((h) => h.id === selectedSuperHubId);
@@ -3404,6 +3418,141 @@ export default function Orders() {
                         Pincode <strong>{deliveryPincode}</strong> is not in the service area.
                         {isOutstationDelivery ? " Outstation delivery enabled — order can be placed." : " Enable \"Outstation Delivery\" above to proceed."}
                       </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Optional address for takeaway */}
+              {orderDeliveryType === "takeaway" && (chosenCustomer || customerMode === "new") && (
+                <div className="px-4 pt-3 pb-3 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5">
+                      <img src="/icon-address.png" className="w-4 h-4 object-contain" alt="" />
+                      Address <span className="text-xs text-gray-400 font-normal ml-1">(optional)</span>
+                    </p>
+                    {chosenCustomer && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 && (
+                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
+                        <button onClick={() => setOrderAddressMode("saved")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "saved" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Saved</button>
+                        <button onClick={() => setOrderAddressMode("new")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${orderAddressMode === "new" ? "bg-[#1A56DB] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>New</button>
+                      </div>
+                    )}
+                  </div>
+                  {chosenCustomer && orderAddressMode === "saved" && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {chosenCustomer.addresses.map((a: any, i: number) => {
+                          const f = getAddressFields(a);
+                          return (
+                            <button key={i} type="button" onClick={() => setSelectedAddressIdx(i)}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${selectedAddressIdx === i ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>
+                              {f?.label || `Address ${i + 1}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedAddressIdx !== null && (
+                        <div className="space-y-0">
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                            <Input value={editedSavedAddress.name} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.phone} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                            <Input value={editedSavedAddress.building} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.street} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.area} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                            <Input value={editedSavedAddress.pincode} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                          </div>
+                          {savedAddrDirty && (
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                type="button"
+                                disabled={savingAddress}
+                                onClick={async () => {
+                                  if (!chosenCustomer?.id) return;
+                                  setSavingAddress(true);
+                                  try {
+                                    const currentAddresses = Array.isArray(chosenCustomer.addresses) ? [...chosenCustomer.addresses] : [];
+                                    const f = editedSavedAddress;
+                                    currentAddresses[selectedAddressIdx] = { ...(currentAddresses[selectedAddressIdx] ?? {}), label: f.label, name: f.name, phone: f.phone, building: f.building, street: f.street, area: f.area, landmark: f.landmark, pincode: f.pincode, city: f.city, state: f.state };
+                                    await apiFetch(`/api/customers/${chosenCustomer.id}`, { method: "PUT", body: JSON.stringify({ addresses: currentAddresses }) });
+                                    setOriginalSavedAddress({ ...editedSavedAddress });
+                                    setChosenCustomer((c: any) => ({ ...c, addresses: currentAddresses }));
+                                    toast({ title: "Address saved" });
+                                  } catch {
+                                    toast({ title: "Failed to save address", variant: "destructive" });
+                                  } finally {
+                                    setSavingAddress(false);
+                                  }
+                                }}
+                                className="flex-1 h-7 rounded-lg bg-[#1A56DB] text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                              >
+                                {savingAddress ? "Saving…" : "Save Address"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditedSavedAddress({ ...originalSavedAddress })}
+                                className="flex-1 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs font-semibold hover:bg-gray-50 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5">
+                        {["Home", "Work", "Other"].map((lbl) => (
+                          <button key={lbl} type="button" onClick={() => setNewAddress((a) => ({ ...a, label: lbl }))} className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${newAddress.label === lbl ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>{lbl}</button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                        <Input value={newAddress.name} onChange={(e) => setNewAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={newAddress.phone} onChange={(e) => setNewAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                        <Input value={newAddress.building} onChange={(e) => setNewAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={newAddress.area} onChange={(e) => setNewAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={newAddress.pincode} onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        {chosenCustomer?.id && (
+                          newAddressSaved ? (
+                            <p className="flex-1 text-xs font-semibold text-emerald-600 text-center py-1">✓ Saved to profile</p>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={savingAddress || !newAddress.building.trim()}
+                              onClick={async () => {
+                                if (!chosenCustomer?.id) return;
+                                setSavingAddress(true);
+                                try {
+                                  const currentAddresses = Array.isArray(chosenCustomer.addresses) ? [...chosenCustomer.addresses] : [];
+                                  const entry = { label: newAddress.label || "Home", name: newAddress.name, phone: newAddress.phone, building: newAddress.building, street: newAddress.street, area: newAddress.area, pincode: newAddress.pincode };
+                                  const updated = [...currentAddresses, entry];
+                                  await apiFetch(`/api/customers/${chosenCustomer.id}`, { method: "PUT", body: JSON.stringify({ addresses: updated }) });
+                                  setChosenCustomer((c: any) => ({ ...c, addresses: updated }));
+                                  setNewAddressSaved(true);
+                                  toast({ title: "Address saved to profile" });
+                                } catch {
+                                  toast({ title: "Failed to save address", variant: "destructive" });
+                                } finally {
+                                  setSavingAddress(false);
+                                }
+                              }}
+                              className="flex-1 h-7 rounded-lg bg-[#1A56DB] text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            >
+                              {savingAddress ? "Saving…" : "Save to Profile"}
+                            </button>
+                          )
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setNewAddress({ label: "Home", name: "", phone: "", building: "", street: "", area: "", pincode: "" })}
+                          className="flex-1 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs font-semibold hover:bg-gray-50 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
