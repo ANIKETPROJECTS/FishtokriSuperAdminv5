@@ -891,6 +891,7 @@ export default function Orders() {
   const [orderDeliveryType, setOrderDeliveryType] = useState<"delivery" | "takeaway">("delivery");
   const [orderAddressMode, setOrderAddressMode] = useState<"saved" | "new">("saved");
   const [selectedAddressIdx, setSelectedAddressIdx] = useState<number | null>(null);
+  const [editedSavedAddress, setEditedSavedAddress] = useState({ label: "Home", name: "", phone: "", building: "", street: "", area: "", landmark: "", pincode: "", city: "", state: "" });
   const [newAddress, setNewAddress] = useState({
     label: "Home", name: "", phone: "",
     building: "", street: "", area: "", pincode: "",
@@ -971,8 +972,13 @@ export default function Orders() {
     setAppliedCouponIds([]); setCouponCode(""); setCouponError("");
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];
     const defaultIdx = addrs.findIndex((a: any) => getAddressFields(a)?.isDefault);
-    setSelectedAddressIdx(addrs.length ? (defaultIdx >= 0 ? defaultIdx : 0) : null);
+    const initIdx = addrs.length ? (defaultIdx >= 0 ? defaultIdx : 0) : null;
+    setSelectedAddressIdx(initIdx);
     setOrderAddressMode(addrs.length ? "saved" : "new");
+    if (initIdx !== null && addrs[initIdx]) {
+      const f = getAddressFields(addrs[initIdx]);
+      if (f) setEditedSavedAddress({ label: f.label || "Home", name: f.contactName || "", phone: f.phone || "", building: [f.houseNo, f.building].filter(Boolean).join(", ") || "", street: f.street || "", area: f.area || "", landmark: f.landmark || "", pincode: f.pincode || "", city: f.city || "", state: f.state || "" });
+    }
     setCustomerSearch("");
     setNewAddress((a: any) => ({ ...a, name: c.name || "", phone: c.phone || "" }));
     // Fetch fresh customer data in the background to get current coupon usage
@@ -1085,6 +1091,26 @@ export default function Orders() {
     setAppliedCouponIds([]); setCouponCode(""); setCouponError("");
     setSelectedTimeslotId("");
   }, [selectedSubHubId]);
+
+  // Sync editedSavedAddress whenever the selected saved address index changes
+  useEffect(() => {
+    if (selectedAddressIdx === null || !chosenCustomer) return;
+    const a = (chosenCustomer.addresses ?? [])[selectedAddressIdx];
+    const f = getAddressFields(a);
+    if (!f) return;
+    setEditedSavedAddress({
+      label: f.label || "Home",
+      name: f.contactName || "",
+      phone: f.phone || "",
+      building: [f.houseNo, f.building].filter(Boolean).join(", ") || "",
+      street: f.street || "",
+      area: f.area || "",
+      landmark: f.landmark || "",
+      pincode: f.pincode || "",
+      city: f.city || "",
+      state: f.state || "",
+    });
+  }, [selectedAddressIdx, chosenCustomer]);
 
   // Poll timeslot counts every 5 s while the create-order panel is open so
   // full slots disappear automatically without a page refresh.
@@ -1274,11 +1300,10 @@ export default function Orders() {
   const deliveryPincode = useMemo(() => {
     if (orderDeliveryType !== "delivery") return "";
     if (orderAddressMode === "saved" && chosenCustomer && selectedAddressIdx !== null) {
-      const a = (chosenCustomer.addresses ?? [])[selectedAddressIdx];
-      return getAddressFields(a)?.pincode || "";
+      return editedSavedAddress.pincode || "";
     }
     return newAddress.pincode || "";
-  }, [orderDeliveryType, orderAddressMode, chosenCustomer, selectedAddressIdx, newAddress.pincode]);
+  }, [orderDeliveryType, orderAddressMode, chosenCustomer, selectedAddressIdx, editedSavedAddress.pincode, newAddress.pincode]);
 
   const pincodeEntry = useMemo(() => {
     if (!deliveryPincode || !selectedSubHubId) return null;
@@ -1463,11 +1488,18 @@ export default function Orders() {
     let deliveryAddressDetail: any = undefined;
     if (orderDeliveryType === "delivery") {
       if (chosenCustomer && orderAddressMode === "saved" && selectedAddressIdx !== null) {
-        const a = (chosenCustomer.addresses ?? [])[selectedAddressIdx];
-        address = formatAddressOneLine(a) || a?.address || a?.line1 || a?.fullAddress || "";
-        const f = getAddressFields(a);
-        deliveryArea = f?.area || f?.city || "";
-        deliveryAddressDetail = a;
+        const f = editedSavedAddress;
+        if (!f.building.trim()) {
+          toast({ title: "Building / Flat No required", description: "Enter the building or flat number for the delivery address.", variant: "destructive" });
+          return;
+        }
+        if (!f.pincode || !/^\d{6}$/.test(f.pincode)) {
+          toast({ title: "Pincode required", description: "Enter a valid 6-digit pincode for the delivery address.", variant: "destructive" });
+          return;
+        }
+        address = [f.building, f.street, f.area, f.landmark, f.city, f.state, f.pincode].filter(Boolean).join(", ");
+        deliveryArea = f.area || f.city || "";
+        deliveryAddressDetail = { label: f.label, name: f.name, phone: f.phone, building: f.building, street: f.street, area: f.area, landmark: f.landmark, pincode: f.pincode, city: f.city, state: f.state };
       } else {
         const f = newAddress;
         if (!f.name.trim()) {
@@ -3147,17 +3179,30 @@ export default function Orders() {
                     </div>
                   </div>
                   {chosenCustomer && orderAddressMode === "saved" && Array.isArray(chosenCustomer.addresses) && chosenCustomer.addresses.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {chosenCustomer.addresses.map((a: any, i: number) => {
-                        const f = getAddressFields(a);
-                        const lines = formatAddressLines(a);
-                        return (
-                          <button key={i} onClick={() => setSelectedAddressIdx(i)} className={`w-full text-left px-3 py-2 rounded-lg border transition-all ${selectedAddressIdx === i ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                            <p className="text-sm font-bold text-[#162B4D]">{f?.label || `Address ${i + 1}`}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 truncate">{lines.slice(0, 2).join(", ")}</p>
-                          </button>
-                        );
-                      })}
+                    <div className="space-y-2">
+                      {/* Address selector tabs — shown only when customer has multiple saved addresses */}
+                      {chosenCustomer.addresses.length > 1 && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {chosenCustomer.addresses.map((a: any, i: number) => {
+                            const f = getAddressFields(a);
+                            return (
+                              <button key={i} type="button" onClick={() => setSelectedAddressIdx(i)}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${selectedAddressIdx === i ? "bg-[#1A56DB] text-white border-[#1A56DB]" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>
+                                {f?.label || `Address ${i + 1}`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* Full editable form for the selected address */}
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                        <Input value={editedSavedAddress.name} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, name: e.target.value }))} placeholder="Recipient name" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={editedSavedAddress.phone} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Phone" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                        <Input value={editedSavedAddress.building} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, building: e.target.value }))} placeholder="Building / Flat *" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={editedSavedAddress.street} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, street: e.target.value }))} placeholder="Street / Landmark" className="h-8 text-sm col-span-2 border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={editedSavedAddress.area} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, area: e.target.value }))} placeholder="Area *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" />
+                        <Input value={editedSavedAddress.pincode} onChange={(e) => setEditedSavedAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="Pincode *" className="h-8 text-sm border-0 border-b border-gray-300 rounded-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0" inputMode="numeric" />
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-2">
