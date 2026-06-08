@@ -240,13 +240,18 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
       const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
       if (pays.length > 0) {
         // Use per-payment-entry amounts (most accurate)
+        let nonWalletPaid = 0;
         for (const p of pays) {
           const mode = String(p?.mode || "").toLowerCase();
           const amt = Number(p?.amount) || 0;
-          if (mode === "cash" || mode === "cod") cash += amt;
-          else if (mode === "upi") upi += amt;
+          if (mode === "cash" || mode === "cod") { cash += amt; nonWalletPaid += amt; }
+          else if (mode === "upi") { upi += amt; nonWalletPaid += amt; }
           else if (mode === "wallet") wallet += amt;
+          else nonWalletPaid += amt;
         }
+        // Excess collected beyond order total → credited to customer wallet
+        const excessToWallet = Math.max(0, nonWalletPaid - (Number(o.total) || 0));
+        wallet += excessToWallet;
       } else {
         // Fallback: split by paymentMode string for partial/paid orders
         const paidAmt = isPartial

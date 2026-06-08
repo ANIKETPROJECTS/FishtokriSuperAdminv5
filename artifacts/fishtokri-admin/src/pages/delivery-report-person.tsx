@@ -142,6 +142,26 @@ function OrderCard({ order }: { order: any }) {
         </div>
         <span className="text-[17px] font-bold text-black ml-2">{formatRupees(order.total ?? 0)}</span>
       </div>
+
+      {/* Wallet credit / debit from over- or under-collection */}
+      {(() => {
+        const pays: any[] = Array.isArray(order.payments) ? order.payments : [];
+        const nonWalletTotal = pays.reduce((s: number, p: any) => {
+          const m = String(p?.mode || "").toLowerCase();
+          return m !== "wallet" ? s + (Number(p.amount) || 0) : s;
+        }, 0);
+        const orderTotal = Number(order.total) || 0;
+        const excess = Math.round((nonWalletTotal - orderTotal) * 100) / 100;
+        if (excess === 0) return null;
+        return (
+          <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[12px] font-semibold ${excess > 0 ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"}`}>
+            <Wallet className="w-3 h-3 flex-shrink-0" />
+            {excess > 0
+              ? `+${formatRupees(excess)} extra collected → credited to wallet`
+              : `${formatRupees(Math.abs(excess))} short → debited from wallet`}
+          </div>
+        );
+      })()}
     </div>
   );
 }
