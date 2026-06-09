@@ -159,7 +159,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
             </div>
             <div className="flex justify-between text-[12px]">
               <span><b>Payment Mode:</b> {payMode}
-                <span className={`ml-1 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${order.paymentStatus==="paid" ? "text-green-700 bg-green-50 border-green-200" : order.paymentStatus==="partial" ? "text-amber-700 bg-amber-50 border-amber-200" : "text-red-700 bg-red-50 border-red-200"}`}>{payLabel}</span>
+                <span className={`ml-1 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${payStatusNorm==="paid" ? "text-green-700 bg-green-50 border-green-200" : payStatusNorm==="partial" ? "text-amber-700 bg-amber-50 border-amber-200" : "text-red-700 bg-red-50 border-red-200"}`}>{payLabel}</span>
               </span>
               <span><b>Time:</b> {timeStr}</span>
             </div>
