@@ -237,9 +237,9 @@ export default function DeliveryReportPage() {
   const isMasterAdmin = admin?.role === "master_admin";
   const [, setLocation] = useLocation();
 
-  const [from, setFrom] = useState(daysAgo(7));
+  const [from, setFrom] = useState(today());
   const [to, setTo] = useState(today());
-  const [applied, setApplied] = useState({ from: daysAgo(7), to: today() });
+  const [applied, setApplied] = useState({ from: today(), to: today() });
 
   const handleApply = (f?: string, t?: string) => setApplied({ from: f ?? from, to: t ?? to });
 
