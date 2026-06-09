@@ -33,11 +33,14 @@ function formatDate(iso: string | null) {
 function formatRupees(n: number) {
   return `₹${(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
-function formatTime12(t: string) {
-  if (!t) return t;
-  const [h, m] = t.split(":").map(Number);
+function formatTime12(t: string): string {
+  const match = String(t).match(/(\d{1,2}):(\d{2})/);
+  if (!match) return String(t);
+  let h = parseInt(match[1], 10);
+  const min = match[2];
   const ampm = h >= 12 ? "PM" : "AM";
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ampm}`;
+  h = h % 12 || 12;
+  return `${h}:${min} ${ampm}`;
 }
 function formatTimeSlot(o: any): string | null {
   if (o?.timeslotStart && o?.timeslotEnd) return `${formatTime12(o.timeslotStart)} to ${formatTime12(o.timeslotEnd)}`;
