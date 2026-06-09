@@ -97,10 +97,13 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
       const paymentStatus = statusMap[(o.paymentStatus || "").toLowerCase()] || o.paymentStatus || "—";
 
       return {
+        _id: String(o._id),
+        orderId: o.orderId || null,
         invoiceNo: o.orderId || `#${String(o._id).slice(-6).toUpperCase()}`,
         customerName: o.customerName || "—",
         phone: o.phone || o.customerPhone || "—",
         address: [o.address, o.deliveryArea, o.deliveryAddressDetail]
+          .map((v: any) => (v && typeof v === "object" ? null : v))
           .filter(Boolean).join(", ") || o.pickupLocation || "—",
         items: items.map((it: any) => ({
           name: it.name || "Unknown",
@@ -111,7 +114,12 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
         itemsSummary: items.map((it: any) =>
           `${it.name} x${it.quantity}${it.unit ? " " + it.unit : ""}`
         ).join(", "),
+        subtotal: Number(o.subtotal) || 0,
         total: Number(o.total) || 0,
+        discount: Number(o.discount) || 0,
+        couponCode: o.couponCode || "",
+        slotCharge: Number(o.slotCharge) || 0,
+        deliveryCharge: Number(o.deliveryCharge) || 0,
         paidAmount: Number(o.paidAmount) ?? null,
         dueAmount: Number(o.dueAmount) ?? null,
         payments: payments.map((p: any) => ({
@@ -124,6 +132,10 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
         status: o.status || "—",
         deliveryDate: o.deliveryDate || "",
         subHubName: o.subHubName || "—",
+        timeslotStart: o.timeslotStart || null,
+        timeslotEnd: o.timeslotEnd || null,
+        timeslotLabel: o.timeslotLabel || null,
+        notes: o.notes || "",
         createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : null,
       };
     });
