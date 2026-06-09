@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Building2, Plus, Search, X, Trash2, ChevronDown, ChevronRight,
-  Lock, PackageOpen, Calendar, Hash, Layers,
+  Building2, Plus, Search, X, Trash2, ChevronDown, ChevronRight, ChevronLeft,
+  Lock, PackageOpen, Calendar, Hash, Layers, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentAdminScope } from "@/lib/api";
 
@@ -141,7 +142,7 @@ function generateNextBatchNumber(productName: string, productBatches: Batch[], s
 function emptyRow(): FormRow {
   return {
     productId: "", productName: "", category: "", unit: "", quantityBefore: 0,
-    mode: "add", addQuantity: "", shelfLifeDays: "", expiryDate: "", expiryTime: getCurrentTimeHHMM(), batchNumber: "",
+    mode: "add", addQuantity: "", shelfLifeDays: "", expiryDate: "", expiryTime: getCurrentTime12h(), batchNumber: "",
     batchNotes: "",
     removeQuantity: "", selectedBatchId: "", search: "",
   };
@@ -153,9 +154,190 @@ function addDaysISO(days: number): string {
   return d.toISOString().split("T")[0];
 }
 
-function getCurrentTimeHHMM(): string {
+function parse12h(time: string): { h: number; m: number; ampm: "AM" | "PM" } {
+  if (!time) return { h: 12, m: 0, ampm: "AM" };
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (match) {
+    return { h: parseInt(match[1], 10), m: parseInt(match[2], 10), ampm: match[3].toUpperCase() as "AM" | "PM" };
+  }
+  const [hStr, mStr] = time.split(":");
+  let h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr, 10) || 0;
+  const ampm: "AM" | "PM" = h >= 12 ? "PM" : "AM";
+  if (h === 0) h = 12;
+  else if (h > 12) h = h - 12;
+  return { h, m, ampm };
+}
+
+function format12h(h: number, m: number, ampm: "AM" | "PM"): string {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function to24hTime(time12h: string): string {
+  const { h, m, ampm } = parse12h(time12h);
+  let hour = h % 12;
+  if (ampm === "PM") hour += 12;
+  return `${String(hour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function getCurrentTime12h(): string {
   const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const h24 = now.getHours();
+  const m = now.getMinutes();
+  const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  let h = h24 % 12;
+  if (h === 0) h = 12;
+  return format12h(h, m, ampm);
+}
+
+function ClockPickerField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { h, m, ampm } = parse12h(value);
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"hour" | "minute">("hour");
+
+  const timeLabel = value
+    ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`
+    : "-- : --";
+
+  const SIZE = 200;
+  const CENTER = SIZE / 2;
+  const R = 78;
+
+  const hourItems = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const minuteItems = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  const items = mode === "hour" ? hourItems : minuteItems;
+
+  const handAngle = mode === "hour"
+    ? ((h % 12) / 12) * 2 * Math.PI - Math.PI / 2
+    : (m / 60) * 2 * Math.PI - Math.PI / 2;
+  const handX = CENTER + R * Math.cos(handAngle);
+  const handY = CENTER + R * Math.sin(handAngle);
+
+  const handleClockClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scaleX = SIZE / rect.width;
+    const scaleY = SIZE / rect.height;
+    const x = (e.clientX - rect.left) * scaleX - CENTER;
+    const y = (e.clientY - rect.top) * scaleY - CENTER;
+    const dist = Math.sqrt(x * x + y * y);
+    if (dist < 20) return;
+    const rawAngle = Math.atan2(y, x);
+    const clockAngle = ((rawAngle + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI));
+    const idx = Math.round(clockAngle / (2 * Math.PI / 12)) % 12;
+    if (mode === "hour") {
+      onChange(format12h(hourItems[idx], m, ampm));
+      setMode("minute");
+    } else {
+      onChange(format12h(h, minuteItems[idx], ampm));
+      setOpen(false);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) setMode("hour"); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center gap-2 w-full h-8 px-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
+        >
+          <Clock className="w-3 h-3 text-gray-400 shrink-0" />
+          <span className={value ? "text-[#162B4D]" : "text-gray-400"}>{timeLabel}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[260px] p-4" align="start" sideOffset={4}>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Select Time</p>
+
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => setMode("hour")}
+              className={`text-[36px] font-bold tabular-nums w-14 text-center rounded-lg py-0.5 transition-colors ${mode === "hour" ? "text-[#162B4D] bg-blue-50" : "text-gray-300 hover:text-gray-500"}`}
+            >
+              {String(h).padStart(2, "0")}
+            </button>
+            <span className="text-[36px] font-bold text-gray-200 select-none">:</span>
+            <button
+              type="button"
+              onClick={() => setMode("minute")}
+              className={`text-[36px] font-bold tabular-nums w-14 text-center rounded-lg py-0.5 transition-colors ${mode === "minute" ? "text-[#162B4D] bg-blue-50" : "text-gray-300 hover:text-gray-500"}`}
+            >
+              {String(m).padStart(2, "0")}
+            </button>
+          </div>
+          <div className="flex flex-col ml-2">
+            {(["AM", "PM"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onChange(format12h(h, m, p))}
+                className={`text-sm font-bold px-2 py-1 rounded-md transition-colors ${ampm === p ? "bg-[#162B4D] text-white" : "text-gray-300 hover:text-gray-600"}`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setMode("hour")}
+            disabled={mode === "hour"}
+            className="p-1 rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <svg
+            viewBox={`0 0 ${SIZE} ${SIZE}`}
+            className="flex-1 cursor-pointer"
+            onClick={handleClockClick}
+          >
+            <circle cx={CENTER} cy={CENTER} r={CENTER - 1} fill="#F8FAFC" stroke="#E8EDF5" strokeWidth="1.5" />
+            <line x1={CENTER} y1={CENTER} x2={handX} y2={handY} stroke="#364F9F" strokeWidth="2" strokeLinecap="round" />
+            <circle cx={CENTER} cy={CENTER} r="4" fill="#364F9F" />
+            <circle cx={handX} cy={handY} r="3.5" fill="#364F9F" />
+            {items.map((item, i) => {
+              const angle = (i / items.length) * 2 * Math.PI - Math.PI / 2;
+              const x = CENTER + R * Math.cos(angle);
+              const y = CENTER + R * Math.sin(angle);
+              const isSelected = mode === "hour" ? h === item : m === item;
+              return (
+                <g key={item}>
+                  {isSelected && <circle cx={x} cy={y} r="15" fill="#364F9F" />}
+                  <text
+                    x={x} y={y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize="13"
+                    fontWeight={isSelected ? "700" : "400"}
+                    fill={isSelected ? "white" : "#4B5563"}
+                    style={{ userSelect: "none", pointerEvents: "none" }}
+                  >
+                    {mode === "minute" ? String(item).padStart(2, "0") : item}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+
+          <button
+            type="button"
+            onClick={() => setMode("minute")}
+            disabled={mode === "minute"}
+            className="p-1 rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-center text-[10px] text-gray-400 mt-2 font-semibold uppercase tracking-widest">
+          {mode === "hour" ? "← Tap to set hour" : "Tap to set minute →"}
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function formatExpiry(iso: string | null) {
@@ -830,7 +1012,7 @@ export default function InventoryStockAdjustment() {
               addQuantity: Number(r.addQuantity),
               shelfLifeDays: r.shelfLifeDays !== "" ? Number(r.shelfLifeDays) : undefined,
               expiryDate: r.expiryDate
-                ? (r.expiryTime ? `${r.expiryDate}T${r.expiryTime}:00` : r.expiryDate)
+                ? (r.expiryTime ? `${r.expiryDate}T${to24hTime(r.expiryTime)}:00` : r.expiryDate)
                 : undefined,
               batchNumber: r.batchNumber || undefined,
               notes: r.batchNotes || undefined,
@@ -1050,11 +1232,9 @@ export default function InventoryStockAdjustment() {
                                 onChange={(e) => setExpiryDate(idx, e.target.value)}
                                 className={`w-full h-9 px-2 text-xs font-semibold border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] ${expTone}`}
                               />
-                              <input
-                                type="time"
+                              <ClockPickerField
                                 value={row.expiryTime}
-                                onChange={(e) => updateRow(idx, { expiryTime: e.target.value })}
-                                className="w-full h-8 px-2 text-xs font-semibold border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] text-gray-500"
+                                onChange={(v) => updateRow(idx, { expiryTime: v })}
                               />
                               {dLeft != null && (
                                 <p className={`text-[10px] font-bold ${expTone}`}>
