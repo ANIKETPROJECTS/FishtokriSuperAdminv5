@@ -1089,7 +1089,7 @@ function ProductsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: (
           category: r["Category"] ?? r["category"] ?? "",
           price: Number(r["Price"] ?? r["price"] ?? 0),
           originalPrice: Number(r["MRP"] ?? r["originalPrice"] ?? 0),
-          unit: r["Unit"] ?? r["unit"] ?? "per kg",
+          unit: r["Unit"] ?? r["unit"] ?? "per pack",
           grossWeight: String(r["Gross Weight"] ?? r["grossWeight"] ?? ""),
           netWeight: String(r["Net Weight"] ?? r["netWeight"] ?? ""),
           pieces: String(r["Pieces"] ?? r["pieces"] ?? ""),
@@ -1129,7 +1129,7 @@ function ProductsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: (
             category: r["Category"] ?? r["category"] ?? orig?.category ?? "",
             price: Number(r["Price"] ?? r["price"] ?? orig?.price ?? 0),
             originalPrice: Number(r["MRP"] ?? r["originalPrice"] ?? orig?.originalPrice ?? 0),
-            unit: r["Unit"] ?? r["unit"] ?? orig?.unit ?? "per kg",
+            unit: r["Unit"] ?? r["unit"] ?? orig?.unit ?? "per pack",
             grossWeight: String(r["Gross Weight"] ?? r["grossWeight"] ?? orig?.grossWeight ?? ""),
             netWeight: String(r["Net Weight"] ?? r["netWeight"] ?? orig?.netWeight ?? ""),
             pieces: String(r["Pieces"] ?? r["pieces"] ?? orig?.pieces ?? ""),
@@ -2560,7 +2560,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
   const [subCategory, setSubCategory] = useState("");
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
-  const [unit, setUnit] = useState("per kg");
+  const [unit, setUnit] = useState("per pack");
   const [grossWeight, setGrossWeight] = useState("");
   const [netWeight, setNetWeight] = useState("");
   const [pieces, setPieces] = useState("");
@@ -2599,7 +2599,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
       setSubCategory(product.subCategory ?? "");
       setPrice(String(product.price ?? ""));
       setOriginalPrice(String(product.originalPrice ?? ""));
-      setUnit(product.unit ?? "per kg");
+      setUnit(product.unit ?? "per pack");
       setGrossWeight(product.grossWeight ?? "");
       setNetWeight(product.netWeight ?? "");
       setPieces(product.pieces ?? "");
@@ -2636,7 +2636,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
         .finally(() => setBatchesLoading(false));
     } else {
       setName(""); setShortCode(""); setDescription(""); setCategory(""); setSubCategory("");
-      setPrice(""); setOriginalPrice(""); setUnit("per kg");
+      setPrice(""); setOriginalPrice(""); setUnit("per pack");
       setGrossWeight(""); setNetWeight(""); setPieces(""); setServes(""); setQuantity("0"); setStatus("available");
       setIsArchived(false); setProductImageUrl(""); setProductImageMode("url"); setRecipes([]);
       setCouponIds([]);

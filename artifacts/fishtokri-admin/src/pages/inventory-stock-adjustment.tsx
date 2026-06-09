@@ -60,6 +60,7 @@ type FormRow = {
   addQuantity: string;
   shelfLifeDays: string;
   expiryDate: string;
+  expiryTime: string;
   batchNumber: string;
   batchNotes: string;
   removeQuantity: string;
@@ -140,7 +141,7 @@ function generateNextBatchNumber(productName: string, productBatches: Batch[], s
 function emptyRow(): FormRow {
   return {
     productId: "", productName: "", category: "", unit: "", quantityBefore: 0,
-    mode: "add", addQuantity: "", shelfLifeDays: "", expiryDate: "", batchNumber: "",
+    mode: "add", addQuantity: "", shelfLifeDays: "", expiryDate: "", expiryTime: getCurrentTimeHHMM(), batchNumber: "",
     batchNotes: "",
     removeQuantity: "", selectedBatchId: "", search: "",
   };
@@ -150,6 +151,11 @@ function addDaysISO(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return d.toISOString().split("T")[0];
+}
+
+function getCurrentTimeHHMM(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
 function formatExpiry(iso: string | null) {
@@ -823,7 +829,9 @@ export default function InventoryStockAdjustment() {
               productId: r.productId, mode: "add",
               addQuantity: Number(r.addQuantity),
               shelfLifeDays: r.shelfLifeDays !== "" ? Number(r.shelfLifeDays) : undefined,
-              expiryDate: r.expiryDate || undefined,
+              expiryDate: r.expiryDate
+                ? (r.expiryTime ? `${r.expiryDate}T${r.expiryTime}:00` : r.expiryDate)
+                : undefined,
               batchNumber: r.batchNumber || undefined,
               notes: r.batchNotes || undefined,
             };
@@ -1033,14 +1041,20 @@ export default function InventoryStockAdjustment() {
                                 className="w-full h-9 px-3 text-sm font-medium text-center border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F]"
                               />
                             </div>
-                            {/* Expiry Date */}
+                            {/* Expiry Date + Time */}
                             <div className="col-span-6 md:col-span-2 space-y-1">
-                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Expiry Date</label>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Expiry Date &amp; Time</label>
                               <input
                                 type="date"
                                 value={row.expiryDate}
                                 onChange={(e) => setExpiryDate(idx, e.target.value)}
                                 className={`w-full h-9 px-2 text-xs font-semibold border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] ${expTone}`}
+                              />
+                              <input
+                                type="time"
+                                value={row.expiryTime}
+                                onChange={(e) => updateRow(idx, { expiryTime: e.target.value })}
+                                className="w-full h-8 px-2 text-xs font-semibold border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#364F9F]/20 focus:border-[#364F9F] text-gray-500"
                               />
                               {dLeft != null && (
                                 <p className={`text-[10px] font-bold ${expTone}`}>
