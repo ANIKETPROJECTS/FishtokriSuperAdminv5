@@ -344,7 +344,10 @@ function formatExpiry(iso: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+  const datePart = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+  if (!iso.includes("T")) return datePart;
+  const timePart = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return `${datePart} ${timePart}`;
 }
 
 function daysUntil(iso: string | null) {
@@ -1012,7 +1015,7 @@ export default function InventoryStockAdjustment() {
               addQuantity: Number(r.addQuantity),
               shelfLifeDays: r.shelfLifeDays !== "" ? Number(r.shelfLifeDays) : undefined,
               expiryDate: r.expiryDate
-                ? (r.expiryTime ? `${r.expiryDate}T${to24hTime(r.expiryTime)}:00` : r.expiryDate)
+                ? (r.expiryTime ? `${r.expiryDate}T${to24hTime(r.expiryTime)}:00+05:30` : r.expiryDate)
                 : undefined,
               batchNumber: r.batchNumber || undefined,
               notes: r.batchNotes || undefined,

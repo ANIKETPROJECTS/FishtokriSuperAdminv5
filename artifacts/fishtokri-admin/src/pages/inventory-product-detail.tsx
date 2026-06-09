@@ -60,6 +60,15 @@ function fmtDate(iso: string | null | undefined) {
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  const datePart = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  if (!iso.includes("T")) return datePart;
+  const timePart = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return `${datePart} · ${timePart}`;
+}
 function daysUntil(iso: string | null | undefined) {
   if (!iso) return null;
   const d = new Date(iso);
@@ -436,7 +445,7 @@ export default function InventoryProductDetail() {
                             : dl <= 7 ? "text-amber-600 font-semibold"
                             : "text-gray-600"
                           }>
-                            {fmtDate(b.expiryDate)}
+                            {fmtDateTime(b.expiryDate)}
                           </span>
                         </div>
                       </td>
