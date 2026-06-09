@@ -380,7 +380,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
       <div style="padding:4px 8px;font-size:13px;color:#111;">
 
         <h2 style="text-align:center;font-size:16px;font-weight:700;margin-bottom:2px;">
-          Atha Foods${order.superHubName ? ` - ${order.superHubName}` : ""}
+          Atha Foods (Fishtokri)${order.subHubName ? ` - ${order.subHubName}` : ""}
         </h2>
         <div style="border-top:1px dashed #999;margin:8px 0;"></div>
         <div style="text-align:center;font-size:12px;color:#555;margin-bottom:8px;">Mobile No: ${order.phone || "—"}</div>
@@ -472,7 +472,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
         <div className="max-h-[70vh] overflow-y-auto p-5 bg-gray-50">
           <div id="invoice-print-area" className="bg-white max-w-md mx-auto p-5 text-[13px] text-gray-800 shadow-sm border border-gray-200 rounded">
             <h3 className="text-center font-bold text-[15px] mb-1">
-              Atha Foods{order.superHubName ? ` - ${order.superHubName}` : ""}
+              Atha Foods (Fishtokri){order.subHubName ? ` - ${order.subHubName}` : ""}
             </h3>
             <div className="border-t border-dashed border-gray-400 my-2" />
             <div className="text-center text-[12px]">Mobile No: {order.phone || "—"}</div>
