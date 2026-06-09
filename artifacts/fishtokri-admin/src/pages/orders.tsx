@@ -361,7 +361,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
 
     const deliveryRow = deliveryCharge > 0 ? `
       <tr>
-        <td style="padding:4px 2px;" colspan="3">Delivery Charge :</td>
+        <td style="padding:4px 2px;" colspan="3">${order.isExpress ? "Porter Charge" : "Delivery Charge"} :</td>
         <td style="padding:4px 2px;text-align:right;">+ ${deliveryCharge.toFixed(2)}</td>
       </tr>` : "";
 
@@ -401,7 +401,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
 
         <div style="font-size:12px;margin:2px 0;"><b>Name:</b> ${order.customerName}</div>
         ${order.address ? `<div style="font-size:12px;margin:2px 0;"><b>Add :</b> ${order.address}</div>` : ""}
-        ${formatTimeSlot(order) ? `<div style="font-size:12px;margin:2px 0;"><b>Delivery Slot:</b> ${formatTimeSlot(order)}</div>` : ""}
+        ${(order.isExpress || formatTimeSlot(order)) ? `<div style="font-size:12px;margin:2px 0;"><b>Delivery Slot:</b> ${order.isExpress ? "Express order by Porter" : formatTimeSlot(order)}</div>` : ""}
 
         <div style="border-top:1px dashed #999;margin:8px 0;"></div>
 
@@ -500,7 +500,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
 
             <div><b>Name:</b> {order.customerName}</div>
             {order.address && <div><b>Add :</b> {order.address}</div>}
-            {formatTimeSlot(order) && <div><b>Delivery Slot:</b> {formatTimeSlot(order)}</div>}
+            {(order.isExpress || formatTimeSlot(order)) && <div><b>Delivery Slot:</b> {order.isExpress ? "Express order by Porter" : formatTimeSlot(order)}</div>}
 
             <div className="border-t border-dashed border-gray-400 my-2" />
 
@@ -546,7 +546,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
                 )}
                 {deliveryCharge > 0 && (
                   <tr>
-                    <td className="py-1" colSpan={3}>Delivery Charge :</td>
+                    <td className="py-1" colSpan={3}>{order.isExpress ? "Porter Charge" : "Delivery Charge"} :</td>
                     <td className="py-1 text-right">+ {deliveryCharge.toFixed(2)}</td>
                   </tr>
                 )}
@@ -952,6 +952,7 @@ export default function Orders() {
   const [orderScheduleType, setOrderScheduleType] = useState<"instant" | "slot">("slot");
   const [orderDate, setOrderDate] = useState<string>(() => getTodayIST());
   const [isOutstationDelivery, setIsOutstationDelivery] = useState(false);
+  const [isExpressOrder, setIsExpressOrder] = useState(false);
 
   // Delivery charge override + extra discount
   const [deliveryChargeInput, setDeliveryChargeInput] = useState<string>("");
@@ -1000,6 +1001,7 @@ export default function Orders() {
     setOrderScheduleType("slot");
     setOrderDate(getTodayIST());
     setIsOutstationDelivery(false);
+    setIsExpressOrder(false);
     setDeliveryChargeInput("");
     setExtraDiscount("");
     setPaymentStatus("unpaid");
@@ -1665,7 +1667,7 @@ export default function Orders() {
 
     // Validate scheduling (only for delivery orders — takeaway is instant for today)
     if (orderDeliveryType === "delivery") {
-      if (orderScheduleType === "slot" && activeTimeslots.length > 0 && !selectedTimeslotId) {
+      if (!isExpressOrder && orderScheduleType === "slot" && activeTimeslots.length > 0 && !selectedTimeslotId) {
         toast({ title: "Pick a delivery slot", description: "Please select a time slot for this order.", variant: "destructive" });
         return;
       }
@@ -1745,16 +1747,15 @@ export default function Orders() {
             reference: p.reference?.trim() || "",
           })),
         // Schedule (takeaway is forced to instant fulfillment for today)
-        scheduleType: orderDeliveryType === "takeaway" ? "instant" : orderScheduleType,
+        isExpress: isExpressOrder,
+        scheduleType: orderDeliveryType === "takeaway" ? "instant" : isExpressOrder ? "express" : orderScheduleType,
         deliveryDate: orderDeliveryType === "takeaway"
           ? new Date().toISOString().slice(0, 10)
           : orderDate,
-        timeslotId: orderDeliveryType === "takeaway"
-          ? undefined
-          : (selectedTimeslot ? String(selectedTimeslot._id) : undefined),
-        timeslotLabel: orderDeliveryType === "takeaway" ? undefined : selectedTimeslot?.label,
-        timeslotStart: orderDeliveryType === "takeaway" ? undefined : selectedTimeslot?.startTime,
-        timeslotEnd: orderDeliveryType === "takeaway" ? undefined : selectedTimeslot?.endTime,
+        timeslotId: (orderDeliveryType === "takeaway" || isExpressOrder) ? undefined : (selectedTimeslot ? String(selectedTimeslot._id) : undefined),
+        timeslotLabel: orderDeliveryType === "takeaway" ? undefined : isExpressOrder ? "Express order by Porter" : selectedTimeslot?.label,
+        timeslotStart: (orderDeliveryType === "takeaway" || isExpressOrder) ? undefined : selectedTimeslot?.startTime,
+        timeslotEnd: (orderDeliveryType === "takeaway" || isExpressOrder) ? undefined : selectedTimeslot?.endTime,
       };
       const url = editingOrderId ? `/api/orders/${editingOrderId}` : "/api/orders";
       const method = editingOrderId ? "PUT" : "POST";
@@ -2228,6 +2229,7 @@ export default function Orders() {
     setUseWallet(hadWallet);
     // Schedule
     setOrderScheduleType("slot");
+    setIsExpressOrder(!!o.isExpress);
     if (o.deliveryDate) setOrderDate(String(o.deliveryDate).slice(0, 10));
     if (o.timeslotId) setSelectedTimeslotId(String(o.timeslotId));
     // Restore delivery charge override + extra discount from saved order.
@@ -3641,53 +3643,75 @@ export default function Orders() {
                 <div className="px-4 pt-3 pb-3">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-normal text-gray-900 flex items-center gap-1.5"><img src="/icon-schedule.png" className="w-4 h-4 object-contain" alt="" />Schedule</p>
+                    {/* Normal / Express toggle */}
+                    <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => { setIsExpressOrder(false); }}
+                        className={`px-3 py-1.5 transition-all ${!isExpressOrder ? "bg-[#1A56DB] text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                      >Normal</button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsExpressOrder(true); setSelectedTimeslotId(""); }}
+                        className={`px-3 py-1.5 transition-all border-l border-gray-200 ${isExpressOrder ? "bg-orange-500 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                      >Express</button>
+                    </div>
                   </div>
-                  {/* Today / Tomorrow selector — only these two days are bookable */}
-                  <div className="flex gap-2 mb-2">
-                    {[
-                      { label: "Today", value: getTodayIST() },
-                      { label: "Tomorrow", value: getTomorrowIST() },
-                    ].map(({ label, value }) => {
-                      const isSelected = orderDate === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => { setOrderDate(value); setSelectedTimeslotId(""); }}
-                          className={`flex-1 h-9 rounded-lg border text-sm font-semibold transition-all ${
-                            isSelected
-                              ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]"
-                              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {orderScheduleType === "slot" && (
-                    loadingTimeslots ? <p className="text-xs text-gray-400">Loading slots...</p>
-                    : activeTimeslots.length === 0 ? <p className="text-xs text-amber-600 flex items-center gap-1"><Zap className="w-3 h-3" />No slots available for this date</p>
-                    : (
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {activeTimeslots.map((t) => {
-                          const id = String(t._id);
-                          const isSelected = selectedTimeslotId === id;
-                          const extra = Number(t.extraCharge) || 0;
-                          const displayStart = t.startTime ?? "";
-                          const displayEnd = addMinutesToTimeStr(t.endTime, pincodeTimeDelay);
+                  {isExpressOrder ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-orange-200 bg-orange-50">
+                      <Zap className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                      <span className="text-xs font-semibold text-orange-700">Express order by Porter</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Today / Tomorrow selector — only these two days are bookable */}
+                      <div className="flex gap-2 mb-2">
+                        {[
+                          { label: "Today", value: getTodayIST() },
+                          { label: "Tomorrow", value: getTomorrowIST() },
+                        ].map(({ label, value }) => {
+                          const isSelected = orderDate === value;
                           return (
-                            <button key={id} type="button" onClick={() => setSelectedTimeslotId(id)}
-                              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => { setOrderDate(value); setSelectedTimeslotId(""); }}
+                              className={`flex-1 h-9 rounded-lg border text-sm font-semibold transition-all ${
+                                isSelected
+                                  ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]"
+                                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                              }`}
                             >
-                              <span className={`text-xs font-semibold ${isSelected ? "text-[#1A56DB]" : "text-[#162B4D]"}`}>
-                                {displayStart}–{displayEnd}{extra > 0 ? ` +₹${extra}` : ""}
-                              </span>
+                              {label}
                             </button>
                           );
                         })}
                       </div>
-                    )
+                      {orderScheduleType === "slot" && (
+                        loadingTimeslots ? <p className="text-xs text-gray-400">Loading slots...</p>
+                        : activeTimeslots.length === 0 ? <p className="text-xs text-amber-600 flex items-center gap-1"><Zap className="w-3 h-3" />No slots available for this date</p>
+                        : (
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {activeTimeslots.map((t) => {
+                              const id = String(t._id);
+                              const isSelected = selectedTimeslotId === id;
+                              const extra = Number(t.extraCharge) || 0;
+                              const displayStart = t.startTime ?? "";
+                              const displayEnd = addMinutesToTimeStr(t.endTime, pincodeTimeDelay);
+                              return (
+                                <button key={id} type="button" onClick={() => setSelectedTimeslotId(id)}
+                                  className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${isSelected ? "border-[#1A56DB] bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                                >
+                                  <span className={`text-xs font-semibold ${isSelected ? "text-[#1A56DB]" : "text-[#162B4D]"}`}>
+                                    {displayStart}–{displayEnd}{extra > 0 ? ` +₹${extra}` : ""}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -3873,7 +3897,7 @@ export default function Orders() {
                 {orderDeliveryType === "delivery" && (
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-orange-600 font-medium whitespace-nowrap">
-                      Delivery charge{deliveryPincode ? ` (${deliveryPincode})` : ""}
+                      {isExpressOrder ? "Porter charge" : `Delivery charge${deliveryPincode ? ` (${deliveryPincode})` : ""}`}
                     </span>
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-orange-600 font-medium">+₹</span>
@@ -4087,7 +4111,7 @@ export default function Orders() {
                         )}
                         {delivery > 0 && (
                           <div className="flex justify-between text-sm font-semibold text-orange-600">
-                            <span>Delivery charge</span>
+                            <span>{selectedOrder.isExpress ? "Porter charge" : "Delivery charge"}</span>
                             <span>+ {formatRupees(delivery)}</span>
                           </div>
                         )}

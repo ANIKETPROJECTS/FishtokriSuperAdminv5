@@ -135,6 +135,7 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
         timeslotStart: o.timeslotStart || null,
         timeslotEnd: o.timeslotEnd || null,
         timeslotLabel: o.timeslotLabel || null,
+        isExpress: !!o.isExpress,
         notes: o.notes || "",
         createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : null,
       };
