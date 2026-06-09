@@ -169,8 +169,16 @@ function PaymentBadge({ order }: { order: any }) {
 }
 
 function formatTime12(t: string): string {
-  const m = String(t).match(/(\d{1,2}):(\d{2})/);
-  if (!m) return String(t);
+  const str = String(t).trim();
+  // If the string already has an AM/PM suffix (12-hour format), parse and re-format it.
+  const ampmMatch = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampmMatch) {
+    const h = parseInt(ampmMatch[1], 10) % 12 || 12;
+    return `${h}:${ampmMatch[2]} ${ampmMatch[3].toUpperCase()}`;
+  }
+  // Otherwise treat as 24-hour format.
+  const m = str.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return str;
   let h = parseInt(m[1], 10);
   const min = m[2];
   const ampm = h >= 12 ? "PM" : "AM";
