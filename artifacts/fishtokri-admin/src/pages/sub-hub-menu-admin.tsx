@@ -2641,7 +2641,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
       setIsArchived(false); setProductImageUrl(""); setProductImageMode("url"); setRecipes([]);
       setCouponIds([]);
       setLowStockThreshold("0");
-      setBatches([emptyBatch()]);
+      setBatches([]);
     }
     setCategoryDropdownOpen(false);
     setCategorySearchInput("");
