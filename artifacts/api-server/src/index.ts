@@ -5,19 +5,50 @@ import { runInventoryBackgroundDeduction } from "./routes/inventory.js";
 import { getSubHubDbConnection } from "./db/sub-hub-connections.js";
 
 /**
- * One-time idempotent migration: any order that has paymentStatus "paid"
- * but a dueAmount > 0 is inconsistent. Reset dueAmount to 0 for all such
- * orders (covers old takeaway orders created before the fix).
+ * Idempotent migration that runs on every startup and fixes two classes of
+ * payment inconsistency in the orders collection:
+ *
+ * 1. Takeaway orders that are still "unpaid" — these are always collected at
+ *    pickup, so mark them paid: paidAmount = total, dueAmount = 0.
+ *
+ * 2. Any order already marked "paid" but still carrying a dueAmount > 0 —
+ *    just zero out the due.
  */
 async function fixPaidOrdersDueAmount() {
   try {
     const conn = await getSubHubDbConnection("orders");
-    const result = await conn.db.collection("orders").updateMany(
+    const col = conn.db.collection("orders");
+
+    // Fix 1: takeaway orders that are not yet marked as paid.
+    const takeawayFix = await col.updateMany(
+      { deliveryType: "takeaway", paymentStatus: { $ne: "paid" } },
+      [
+        {
+          $set: {
+            paymentStatus: "paid",
+            paidAmount: { $ifNull: ["$total", 0] },
+            dueAmount: 0,
+          },
+        },
+      ]
+    );
+    if (takeawayFix.modifiedCount > 0) {
+      logger.info(
+        { count: takeawayFix.modifiedCount },
+        "Migration: marked unpaid takeaway orders as fully paid"
+      );
+    }
+
+    // Fix 2: any order already "paid" but with a stale dueAmount > 0.
+    const dueFix = await col.updateMany(
       { paymentStatus: "paid", dueAmount: { $gt: 0 } },
       { $set: { dueAmount: 0 } }
     );
-    if (result.modifiedCount > 0) {
-      logger.info({ count: result.modifiedCount }, "Migration: reset dueAmount=0 for paid orders");
+    if (dueFix.modifiedCount > 0) {
+      logger.info(
+        { count: dueFix.modifiedCount },
+        "Migration: reset dueAmount=0 for paid orders"
+      );
     }
   } catch (err) {
     logger.error({ err }, "Migration: fixPaidOrdersDueAmount failed (non-fatal)");
