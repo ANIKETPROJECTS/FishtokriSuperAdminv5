@@ -390,36 +390,52 @@ router.get("/", async (req: ScopedRequest, res) => {
     const filter: any = {};
 
     if (q) {
-      const re = { $regex: q, $options: "i" };
-      const orClauses: any[] = [
-        { customerName: re },
-        { phone: re },
-        { deliveryArea: re },
-        { address: re },
-        { "items.name": re },
-      ];
-      // Match by order id — full ObjectId or trailing fragment (case-insensitive,
-      // hex-only). Reference shown in UI is `#<last6>` from the _id, so support
-      // partial hex matches too.
-      const hex = q.replace(/^#/, "").toLowerCase();
-      if (/^[0-9a-f]+$/.test(hex)) {
-        if (hex.length === 24) {
-          const oid = toId(hex);
-          if (oid) orClauses.push({ _id: oid });
-        } else {
-          // Match any _id whose hex string ends with the query fragment.
-          orClauses.push({
-            $expr: {
-              $regexMatch: {
-                input: { $toString: "$_id" },
-                regex: `${hex}$`,
-                options: "i",
+      const escapeRe = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const words = q.trim().split(/\s+/).filter(Boolean);
+
+      const buildWordClause = (word: string) => {
+        const re = { $regex: escapeRe(word), $options: "i" };
+        const orClauses: any[] = [
+          { customerName: re },
+          { phone: re },
+          { deliveryArea: re },
+          { address: re },
+          { "items.name": re },
+          { orderId: re },
+        ];
+        // Also match by ObjectId hex — full (24 chars) or trailing fragment.
+        // Strip leading '#' so searching '#FTS...' and 'FTS...' both work via orderId above;
+        // hex fragment matching only applies to the raw _id hex string.
+        const hex = word.replace(/^#/, "").toLowerCase();
+        if (/^[0-9a-f]+$/.test(hex)) {
+          if (hex.length === 24) {
+            const oid = toId(hex);
+            if (oid) orClauses.push({ _id: oid });
+          } else {
+            orClauses.push({
+              $expr: {
+                $regexMatch: {
+                  input: { $toString: "$_id" },
+                  regex: `${hex}$`,
+                  options: "i",
+                },
               },
-            },
-          });
+            });
+          }
         }
+        return { $or: orClauses };
+      };
+
+      if (words.length === 1) {
+        // Single word: set $or directly so the tab-history handler can wrap it.
+        filter.$or = buildWordClause(words[0]).$or;
+      } else {
+        // Multiple words: each word must match at least one field ($and of $or).
+        // The tab-history handler checks filter.$or — since it's unset here, it
+        // will add the status clause as a new top-level $or which MongoDB ANDs
+        // with our $and, giving correct results.
+        filter.$and = words.map(buildWordClause);
       }
-      filter.$or = orClauses;
     }
 
     // Tab semantics: takeaway-deliveryType orders are always treated as completed (History).
