@@ -1226,6 +1226,15 @@ export default function Orders() {
     return coupons.filter((c) => {
       if (c.isActive === false) return false;
       if (c.expiresAt && new Date(c.expiresAt).getTime() < now) return false;
+      // If the coupon is restricted to specific customers, only show it for those customers
+      const restrictedCustomers: string[] = Array.isArray(c.applicableCustomers)
+        ? c.applicableCustomers.map((x: any) => String(x))
+        : [];
+      if (restrictedCustomers.length > 0) {
+        // If no customer is selected yet, hide restricted coupons
+        if (!chosenCustomer) return false;
+        if (!restrictedCustomers.includes(String(chosenCustomer.id))) return false;
+      }
       // Hide coupons the customer has already exhausted their usage limit for
       if (c.maxUsage != null && Number(c.maxUsage) > 0 && chosenCustomer) {
         const couponId = String(c._id);
