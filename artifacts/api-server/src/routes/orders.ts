@@ -1018,7 +1018,7 @@ router.post("/", async (req: ScopedRequest, res) => {
             .filter((p: any) => p.mode && p.amount > 0)
         : [],
       paidAmount: Math.max(0, Number(paidAmount) || 0),
-      dueAmount: Math.max(0, totalNum - (Number(paidAmount) || 0)),
+      dueAmount: String(paymentStatus) === "paid" ? 0 : Math.max(0, totalNum - (Number(paidAmount) || 0)),
       paymentMode: paymentMode ? String(paymentMode) : undefined,
       // Schedule
       scheduleType: scheduleType === "instant" ? "instant" : scheduleType === "express" ? "express" : "slot",
@@ -1386,7 +1386,11 @@ router.put("/:id", async (req: ScopedRequest, res) => {
         );
         update.total = totalNum;
       }
-      update.dueAmount = Math.max(0, totalNum - paidNum);
+      const effectivePaymentStatus = update.paymentStatus ?? (await (async () => {
+        const o = await (await getOrdersDb()).db.collection(COLLECTION).findOne({ _id: oid }, { projection: { paymentStatus: 1 } });
+        return o?.paymentStatus ?? "unpaid";
+      })());
+      update.dueAmount = String(effectivePaymentStatus) === "paid" ? 0 : Math.max(0, totalNum - paidNum);
     }
     const conn = await getOrdersDb();
     const prev = await conn.db.collection(COLLECTION).findOne({ _id: oid });
@@ -1441,6 +1445,12 @@ router.put("/:id", async (req: ScopedRequest, res) => {
       const totalForDue = Number((update.total ?? prev.total)) || 0;
       update.dueAmount = totalForDue;
     }
+    // Final guard: if the resolved paymentStatus is "paid", dueAmount must be 0.
+    const finalPaymentStatus = update.paymentStatus ?? String(prev.paymentStatus ?? "");
+    if (finalPaymentStatus === "paid") {
+      update.dueAmount = 0;
+    }
+
     const result = await conn.db.collection(COLLECTION).findOneAndUpdate(
       { _id: oid },
       { $set: update },

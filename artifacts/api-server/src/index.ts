@@ -2,6 +2,27 @@ import app from "./app.js";
 import { logger } from "./lib/logger.js";
 import { connectDB } from "./db/index.js";
 import { runInventoryBackgroundDeduction } from "./routes/inventory.js";
+import { getSubHubDbConnection } from "./db/sub-hub-connections.js";
+
+/**
+ * One-time idempotent migration: any order that has paymentStatus "paid"
+ * but a dueAmount > 0 is inconsistent. Reset dueAmount to 0 for all such
+ * orders (covers old takeaway orders created before the fix).
+ */
+async function fixPaidOrdersDueAmount() {
+  try {
+    const conn = await getSubHubDbConnection("orders");
+    const result = await conn.db.collection("orders").updateMany(
+      { paymentStatus: "paid", dueAmount: { $gt: 0 } },
+      { $set: { dueAmount: 0 } }
+    );
+    if (result.modifiedCount > 0) {
+      logger.info({ count: result.modifiedCount }, "Migration: reset dueAmount=0 for paid orders");
+    }
+  } catch (err) {
+    logger.error({ err }, "Migration: fixPaidOrdersDueAmount failed (non-fatal)");
+  }
+}
 
 const rawPort = process.env["PORT"];
 
@@ -23,6 +44,9 @@ connectDB()
         process.exit(1);
       }
       logger.info({ port }, "Server listening");
+
+      // Migration: fix paid orders that still have dueAmount > 0 (old takeaway bug).
+      fixPaidOrdersDueAmount().catch(() => {});
 
       // Run once at startup (after 15s) to catch any orders that missed deduction
       // while the server was down, then keep polling every 60s.

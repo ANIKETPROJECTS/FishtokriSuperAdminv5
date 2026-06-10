@@ -4242,7 +4242,7 @@ export default function Orders() {
                   const pays: any[] = Array.isArray(selectedOrder.payments) ? selectedOrder.payments : [];
                   const status = String(selectedOrder.paymentStatus || "").toLowerCase();
                   const paid = Number(selectedOrder.paidAmount) || pays.reduce((s, p) => s + (Number(p?.amount) || 0), 0);
-                  const due = Number(selectedOrder.dueAmount) || 0;
+                  const due = status === "paid" ? 0 : (Number(selectedOrder.dueAmount) || 0);
                   if (!pays.length && !status && !paid) return null;
                   const statusStyle = status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : status === "partial" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-red-50 text-red-600 border-red-200";
                   const statusLabel = status === "paid" ? "Fully Paid" : status === "partial" ? "Partial" : "Unpaid";
