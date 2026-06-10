@@ -3419,7 +3419,7 @@ function CouponModal({ isOpen, onClose, coupon, subHubId, onSaved }: any) {
     if (!isOpen) return;
     apiFetch(`/api/sub-hubs/${subHubId}/menu/categories`).then((d) => setAvailableCategories(d.categories ?? [])).catch(() => {});
     apiFetch(`/api/sub-hubs/${subHubId}/menu/products`).then((d) => setAvailableProducts(d.products ?? [])).catch(() => {});
-    apiFetch(`/api/customers?limit=100&sort=name_asc`).then((d) => setAvailableCustomers(d.customers ?? [])).catch(() => {});
+    apiFetch(`/api/customers/lean-all`).then((d) => setAvailableCustomers(d.customers ?? [])).catch(() => {});
     if (coupon) {
       setCode(coupon.code ?? ""); setTitle(coupon.title ?? ""); setDescription(coupon.description ?? "");
       setType(coupon.type ?? "percentage"); setDiscountValue(String(coupon.discountValue ?? ""));
@@ -3494,161 +3494,166 @@ function CouponModal({ isOpen, onClose, coupon, subHubId, onSaved }: any) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[860px] max-h-[92vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="text-[#162B4D]">{isEditing ? "Edit Coupon" : "Add Coupon"}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3 pt-1">
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+
+          {/* Row 1: Code + Title + Description */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Coupon Code *</Label><Input required value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. FISH10" className="h-9 font-mono" /></div>
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Display Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Weekend Deal" className="h-9" /></div>
+            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short coupon description" className="h-9" /></div>
           </div>
-          <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short coupon description" className="h-9" /></div>
-          <div className="grid grid-cols-2 gap-3">
+
+          {/* Row 2: Discount Type + Value + Min Order + Max Usage + Expiry */}
+          <div className="grid grid-cols-5 gap-4">
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Discount Type</Label><Select value={type} onValueChange={(v) => { setType(v); if (v === "percentage" && Number(discountValue) > 100) setDiscountValue("100"); }}><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="percentage">Percentage (%)</SelectItem><SelectItem value="flat">Flat (₹)</SelectItem></SelectContent></Select></div>
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Discount Value *</Label><Input required type="number" min="0" max={type === "percentage" ? 100 : undefined} value={discountValue} onChange={(e) => { const v = e.target.value; setDiscountValue(type === "percentage" && Number(v) > 100 ? "100" : v); }} placeholder={type === "percentage" ? "10" : "50"} className="h-9" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Min Order (₹)</Label><Input type="number" min="0" value={minOrderAmount} onChange={(e) => setMinOrderAmount(e.target.value)} placeholder="0" className="h-9" /></div>
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Max Usage</Label><Input type="number" min="0" value={isFirstTimeOnly ? "1" : maxUsage} onChange={(e) => setMaxUsage(e.target.value)} placeholder="Unlimited" disabled={isFirstTimeOnly} className="h-9 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Expiry Date</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="h-9" /></div>
           </div>
-          <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Expiry Date</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="h-9" /></div>
 
-          {/* Applicable Categories */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-600">
-              Applicable Categories
-              <span className="font-normal text-gray-400 ml-1">
-                {selectedCategoryIds.length > 0 ? `(${selectedCategoryIds.length} selected)` : "(all categories)"}
-              </span>
-            </Label>
-            {selectedCategoryIds.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1">
-                {selectedCategoryIds.map((id) => {
-                  const cat = availableCategories.find((c) => String(c._id) === id);
-                  return (
-                    <span key={id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 text-xs rounded-full px-2 py-0.5">
-                      {cat ? cat.name : id}
-                      <button type="button" onClick={() => toggleCategory(id)} className="hover:text-blue-900 ml-0.5">×</button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="flex items-center gap-1.5 p-1.5 border-b border-gray-100 bg-gray-50">
-                <input
-                  type="checkbox"
-                  title="Select all"
-                  checked={filteredCategories.length > 0 && filteredCategories.every((c) => selectedCategoryIds.includes(String(c._id)))}
-                  ref={(el) => { if (el) el.indeterminate = filteredCategories.some((c) => selectedCategoryIds.includes(String(c._id))) && !filteredCategories.every((c) => selectedCategoryIds.includes(String(c._id))); }}
-                  onChange={() => {
-                    const allIds = filteredCategories.map((c) => String(c._id));
-                    const allChecked = allIds.every((id) => selectedCategoryIds.includes(id));
-                    setSelectedCategoryIds(allChecked ? selectedCategoryIds.filter((id) => !allIds.includes(id)) : Array.from(new Set([...selectedCategoryIds, ...allIds])));
-                  }}
-                  className="rounded text-[#1A56DB] ml-1"
-                />
-                <Input value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} placeholder="Search categories..." className="h-7 text-xs border-0 bg-transparent focus-visible:ring-0 px-1 flex-1" />
-              </div>
-              <div className="max-h-32 overflow-y-auto">
-                {availableCategories.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">Loading categories…</p>
-                ) : filteredCategories.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">No categories found</p>
-                ) : (
-                  filteredCategories.map((cat) => {
-                    const id = String(cat._id);
-                    const checked = selectedCategoryIds.includes(id);
+          {/* Row 3: Categories + Products side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Applicable Categories */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">
+                Applicable Categories
+                <span className="font-normal text-gray-400 ml-1">
+                  {selectedCategoryIds.length > 0 ? `(${selectedCategoryIds.length} selected)` : "(all categories)"}
+                </span>
+              </Label>
+              {selectedCategoryIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1">
+                  {selectedCategoryIds.map((id) => {
+                    const cat = availableCategories.find((c) => String(c._id) === id);
                     return (
-                      <label key={id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                        <input type="checkbox" checked={checked} onChange={() => toggleCategory(id)} className="rounded text-[#1A56DB]" />
-                        <span className="text-xs text-gray-700 flex-1">{cat.name}</span>
-                        {cat.subCategories?.length > 0 && <span className="text-xs text-gray-400">{cat.subCategories.length} sub</span>}
-                      </label>
+                      <span key={id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 text-xs rounded-full px-2 py-0.5">
+                        {cat ? cat.name : id}
+                        <button type="button" onClick={() => toggleCategory(id)} className="hover:text-blue-900 ml-0.5">×</button>
+                      </span>
                     );
-                  })
-                )}
+                  })}
+                </div>
+              )}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-1.5 p-1.5 border-b border-gray-100 bg-gray-50">
+                  <input
+                    type="checkbox"
+                    title="Select all"
+                    checked={filteredCategories.length > 0 && filteredCategories.every((c) => selectedCategoryIds.includes(String(c._id)))}
+                    ref={(el) => { if (el) el.indeterminate = filteredCategories.some((c) => selectedCategoryIds.includes(String(c._id))) && !filteredCategories.every((c) => selectedCategoryIds.includes(String(c._id))); }}
+                    onChange={() => {
+                      const allIds = filteredCategories.map((c) => String(c._id));
+                      const allChecked = allIds.every((id) => selectedCategoryIds.includes(id));
+                      setSelectedCategoryIds(allChecked ? selectedCategoryIds.filter((id) => !allIds.includes(id)) : Array.from(new Set([...selectedCategoryIds, ...allIds])));
+                    }}
+                    className="rounded text-[#1A56DB] ml-1"
+                  />
+                  <Input value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} placeholder="Search categories..." className="h-7 text-xs border-0 bg-transparent focus-visible:ring-0 px-1 flex-1" />
+                </div>
+                <div className="h-44 overflow-y-auto">
+                  {availableCategories.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">Loading categories…</p>
+                  ) : filteredCategories.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">No categories found</p>
+                  ) : (
+                    filteredCategories.map((cat) => {
+                      const id = String(cat._id);
+                      const checked = selectedCategoryIds.includes(id);
+                      return (
+                        <label key={id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                          <input type="checkbox" checked={checked} onChange={() => toggleCategory(id)} className="rounded text-[#1A56DB]" />
+                          <span className="text-xs text-gray-700 flex-1">{cat.name}</span>
+                          {cat.subCategories?.length > 0 && <span className="text-xs text-gray-400">{cat.subCategories.length} sub</span>}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Applicable Products */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">
+                Applicable Products
+                <span className="font-normal text-gray-400 ml-1">
+                  {selectedProductIds.length > 0
+                    ? `(${selectedProductIds.length} selected)`
+                    : restrictedByCategory
+                      ? `(from selected categories)`
+                      : "(all products)"}
+                </span>
+              </Label>
+              {selectedProductIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1">
+                  {selectedProductIds.map((id) => {
+                    const prod = availableProducts.find((p) => String(p._id) === id);
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-100 text-xs rounded-full px-2 py-0.5">
+                        {prod ? prod.name : id}
+                        <button type="button" onClick={() => toggleProduct(id)} className="hover:text-green-900 ml-0.5">×</button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-1.5 p-1.5 border-b border-gray-100 bg-gray-50">
+                  <input
+                    type="checkbox"
+                    title="Select all"
+                    checked={filteredProducts.length > 0 && filteredProducts.every((p) => selectedProductIds.includes(String(p._id)))}
+                    ref={(el) => { if (el) el.indeterminate = filteredProducts.some((p) => selectedProductIds.includes(String(p._id))) && !filteredProducts.every((p) => selectedProductIds.includes(String(p._id))); }}
+                    onChange={() => {
+                      const allIds = filteredProducts.map((p) => String(p._id));
+                      const allChecked = allIds.every((id) => selectedProductIds.includes(id));
+                      setSelectedProductIds(allChecked ? selectedProductIds.filter((id) => !allIds.includes(id)) : Array.from(new Set([...selectedProductIds, ...allIds])));
+                    }}
+                    className="rounded text-[#1A56DB] ml-1"
+                  />
+                  <Input value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Search products..." className="h-7 text-xs border-0 bg-transparent focus-visible:ring-0 px-1 flex-1" />
+                  {!restrictedByCategory && productCategoryNames.length > 0 && (
+                    <select value={productCatFilter} onChange={(e) => setProductCatFilter(e.target.value)} className="h-7 text-xs border border-gray-200 rounded px-1 bg-white text-gray-600">
+                      <option value="all">All</option>
+                      {productCategoryNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  )}
+                </div>
+                <div className="h-44 overflow-y-auto">
+                  {availableProducts.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">Loading products…</p>
+                  ) : filteredProducts.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">
+                      {restrictedByCategory ? "No products in selected categories" : "No products found"}
+                    </p>
+                  ) : (
+                    filteredProducts.map((prod) => {
+                      const id = String(prod._id);
+                      const checked = selectedProductIds.includes(id);
+                      return (
+                        <label key={id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                          <input type="checkbox" checked={checked} onChange={() => toggleProduct(id)} className="rounded text-[#1A56DB]" />
+                          <span className="text-xs text-gray-700 flex-1">{prod.name}</span>
+                          {prod.category && <span className="text-xs text-gray-400 shrink-0">{prod.category}</span>}
+                          {prod.discountedPrice != null && <span className="text-xs font-medium text-gray-600 shrink-0">₹{prod.discountedPrice}</span>}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Applicable Products */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-600">
-              Applicable Products
-              <span className="font-normal text-gray-400 ml-1">
-                {selectedProductIds.length > 0
-                  ? `(${selectedProductIds.length} selected)`
-                  : restrictedByCategory
-                    ? `(from selected categories)`
-                    : "(all products)"}
-              </span>
-            </Label>
-            {selectedProductIds.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1">
-                {selectedProductIds.map((id) => {
-                  const prod = availableProducts.find((p) => String(p._id) === id);
-                  return (
-                    <span key={id} className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-100 text-xs rounded-full px-2 py-0.5">
-                      {prod ? prod.name : id}
-                      <button type="button" onClick={() => toggleProduct(id)} className="hover:text-green-900 ml-0.5">×</button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="flex items-center gap-1.5 p-1.5 border-b border-gray-100 bg-gray-50">
-                <input
-                  type="checkbox"
-                  title="Select all"
-                  checked={filteredProducts.length > 0 && filteredProducts.every((p) => selectedProductIds.includes(String(p._id)))}
-                  ref={(el) => { if (el) el.indeterminate = filteredProducts.some((p) => selectedProductIds.includes(String(p._id))) && !filteredProducts.every((p) => selectedProductIds.includes(String(p._id))); }}
-                  onChange={() => {
-                    const allIds = filteredProducts.map((p) => String(p._id));
-                    const allChecked = allIds.every((id) => selectedProductIds.includes(id));
-                    setSelectedProductIds(allChecked ? selectedProductIds.filter((id) => !allIds.includes(id)) : Array.from(new Set([...selectedProductIds, ...allIds])));
-                  }}
-                  className="rounded text-[#1A56DB] ml-1"
-                />
-                <Input value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Search products..." className="h-7 text-xs border-0 bg-transparent focus-visible:ring-0 px-1 flex-1" />
-                {!restrictedByCategory && productCategoryNames.length > 0 && (
-                  <select value={productCatFilter} onChange={(e) => setProductCatFilter(e.target.value)} className="h-7 text-xs border border-gray-200 rounded px-1 bg-white text-gray-600">
-                    <option value="all">All</option>
-                    {productCategoryNames.map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                )}
-              </div>
-              <div className="max-h-40 overflow-y-auto">
-                {availableProducts.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">Loading products…</p>
-                ) : filteredProducts.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">
-                    {restrictedByCategory ? "No products in selected categories" : "No products found"}
-                  </p>
-                ) : (
-                  filteredProducts.map((prod) => {
-                    const id = String(prod._id);
-                    const checked = selectedProductIds.includes(id);
-                    return (
-                      <label key={id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                        <input type="checkbox" checked={checked} onChange={() => toggleProduct(id)} className="rounded text-[#1A56DB]" />
-                        <span className="text-xs text-gray-700 flex-1">{prod.name}</span>
-                        {prod.category && <span className="text-xs text-gray-400">{prod.category}</span>}
-                        {prod.discountedPrice != null && <span className="text-xs font-medium text-gray-600">₹{prod.discountedPrice}</span>}
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Applicable Customers */}
+          {/* Applicable Customers — full width */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-gray-600">
               Applicable Customers
               <span className="font-normal text-gray-400 ml-1">
-                {selectedCustomerIds.length > 0 ? `(${selectedCustomerIds.length} selected)` : "(all customers)"}
+                {selectedCustomerIds.length > 0 ? `(${selectedCustomerIds.length} selected — coupon restricted to these customers)` : "(all customers)"}
               </span>
             </Label>
             {selectedCustomerIds.length > 0 && (
@@ -3668,12 +3673,12 @@ function CouponModal({ isOpen, onClose, coupon, subHubId, onSaved }: any) {
               <div className="flex items-center gap-1.5 p-1.5 border-b border-gray-100 bg-gray-50">
                 <Input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Search by name or phone..." className="h-7 text-xs border-0 bg-transparent focus-visible:ring-0 px-1 flex-1" />
                 {selectedCustomerIds.length > 0 && (
-                  <button type="button" onClick={() => setSelectedCustomerIds([])} className="text-xs text-gray-400 hover:text-gray-600 px-1 flex-shrink-0">Clear all</button>
+                  <button type="button" onClick={() => setSelectedCustomerIds([])} className="text-xs text-gray-400 hover:text-gray-600 px-2 flex-shrink-0">Clear all</button>
                 )}
               </div>
-              <div className="max-h-32 overflow-y-auto">
+              <div className="h-40 overflow-y-auto">
                 {availableCustomers.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">Loading customers…</p>
+                  <p className="text-xs text-gray-400 text-center py-4">Loading customers…</p>
                 ) : (() => {
                   const filtered = availableCustomers.filter((c) => {
                     if (!customerSearch) return true;
@@ -3681,40 +3686,50 @@ function CouponModal({ isOpen, onClose, coupon, subHubId, onSaved }: any) {
                     return (c.name ?? "").toLowerCase().includes(q) || (c.phone ?? "").includes(q);
                   });
                   return filtered.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-3">No customers found</p>
+                    <p className="text-xs text-gray-400 text-center py-4">No customers found</p>
                   ) : (
-                    filtered.map((cust) => {
-                      const id = String(cust.id);
-                      const checked = selectedCustomerIds.includes(id);
-                      return (
-                        <label key={id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                          <input type="checkbox" checked={checked} onChange={() => toggleCustomer(id)} className="rounded text-[#1A56DB]" />
-                          <span className="text-xs text-gray-700 flex-1">{cust.name || "—"}</span>
-                          {cust.phone && <span className="text-xs text-gray-400">{cust.phone}</span>}
-                        </label>
-                      );
-                    })
+                    <div className="grid grid-cols-2">
+                      {filtered.map((cust) => {
+                        const id = String(cust.id);
+                        const checked = selectedCustomerIds.includes(id);
+                        return (
+                          <label key={id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" checked={checked} onChange={() => toggleCustomer(id)} className="rounded text-[#1A56DB] shrink-0" />
+                            <span className="text-xs text-gray-700 truncate flex-1">{cust.name || "—"}</span>
+                            {cust.phone && <span className="text-xs text-gray-400 shrink-0">{cust.phone}</span>}
+                          </label>
+                        );
+                      })}
+                    </div>
                   );
                 })()}
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg flex-1"><Label className="text-sm">First Time Only</Label><Switch checked={isFirstTimeOnly} onCheckedChange={setIsFirstTimeOnly} className="data-[state=checked]:bg-[#1A56DB]" /></div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg flex-1">
+          {/* Toggles row */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <Label className="text-sm">First Time Only</Label>
+              <Switch checked={isFirstTimeOnly} onCheckedChange={setIsFirstTimeOnly} className="data-[state=checked]:bg-[#1A56DB]" />
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <Label className="text-sm">Active</Label>
               <Switch checked={isActive} onCheckedChange={(v) => { setIsActive(v); if (!v) setVisibleOnWebsite(false); }} className="data-[state=checked]:bg-[#1A56DB]" />
             </div>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <Label className="text-sm">Visible on Website</Label>
-              <p className="text-xs text-gray-400 mt-0.5">{!isActive ? "Requires Active to be on" : visibleOnWebsite ? "Coupon is visible to customers" : "Hidden from customers"}</p>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <Label className="text-sm">Visible on Website</Label>
+                <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{!isActive ? "Requires Active on" : visibleOnWebsite ? "Visible to customers" : "Hidden from customers"}</p>
+              </div>
+              <Switch checked={visibleOnWebsite && isActive} onCheckedChange={(v) => { if (isActive) setVisibleOnWebsite(v); }} disabled={!isActive} className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-gray-400 disabled:opacity-40 disabled:cursor-not-allowed" />
             </div>
-            <Switch checked={visibleOnWebsite && isActive} onCheckedChange={(v) => { if (isActive) setVisibleOnWebsite(v); }} disabled={!isActive} className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-gray-400 disabled:opacity-40 disabled:cursor-not-allowed" />
           </div>
-          <DialogFooter className="pt-1"><Button type="button" variant="outline" onClick={onClose} className="h-9">Cancel</Button><Button type="submit" disabled={saving} className="bg-[#1A56DB] hover:bg-[#1447B4] h-9">{isEditing ? "Save Changes" : "Add Coupon"}</Button></DialogFooter>
+
+          <DialogFooter className="pt-1">
+            <Button type="button" variant="outline" onClick={onClose} className="h-9">Cancel</Button>
+            <Button type="submit" disabled={saving} className="bg-[#1A56DB] hover:bg-[#1447B4] h-9">{isEditing ? "Save Changes" : "Add Coupon"}</Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

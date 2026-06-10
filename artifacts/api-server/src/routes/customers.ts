@@ -354,6 +354,36 @@ router.get("/pos-search", async (req: ScopedRequest, res) => {
   }
 });
 
+// Lean full list — id/name/phone only, no enrichment, no pagination cap.
+// Used by the coupon modal to populate the customer picker with all customers.
+router.get("/lean-all", async (req: ScopedRequest, res) => {
+  try {
+    const Customer = await getCustomerModel();
+    const scopeKeys = await loadCustomerScopeKeys(req.scope);
+    const filter: Record<string, any> = {};
+    if (scopeKeys) {
+      const hasAnyKeys = scopeKeys.phones.length > 0 || scopeKeys.emails.length > 0 || scopeKeys.objectIds.length > 0;
+      if (!hasAnyKeys) { res.json({ customers: [] }); return; }
+      const scopeOr: any[] = [];
+      if (scopeKeys.phones.length) scopeOr.push({ phone: { $in: scopeKeys.phones } });
+      if (scopeKeys.emails.length) scopeOr.push({ email: { $in: scopeKeys.emails } });
+      if (scopeKeys.objectIds.length) scopeOr.push({ _id: { $in: scopeKeys.objectIds } });
+      Object.assign(filter, { $or: scopeOr });
+    }
+    const docs = await Customer.find(filter).sort({ name: 1 }).select("name phone");
+    res.json({
+      customers: docs.map((d: any) => ({
+        id: String(d._id),
+        name: d.name ?? "",
+        phone: d.phone ?? "",
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get lean customer list");
+    res.status(500).json({ error: "InternalError", message: "Failed to fetch customers" });
+  }
+});
+
 router.get("/:id", async (req: ScopedRequest, res) => {
   try {
     const Customer = await getCustomerModel();
