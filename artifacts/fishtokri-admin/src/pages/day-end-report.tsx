@@ -241,12 +241,22 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   const filteredOrders = useMemo(() => {
     let list = [...orders];
     const q = ordSearch.trim().toLowerCase();
-    if (q) list = list.filter(o =>
-      o.customerName?.toLowerCase().includes(q) ||
-      o.phone?.toLowerCase().includes(q) ||
-      o.invoiceNo?.toLowerCase().includes(q) ||
-      o.deliveryPerson?.toLowerCase().includes(q)
-    );
+    if (q) {
+      const words = q.split(/\s+/).filter(Boolean);
+      list = list.filter(o => {
+        const invoiceRaw = String(o.invoiceNo || o.orderId || "").toLowerCase();
+        const invoiceNoHash = invoiceRaw.startsWith("#") ? invoiceRaw.slice(1) : invoiceRaw;
+        const haystack = [
+          o.customerName || "",
+          o.phone || "",
+          invoiceRaw,
+          invoiceNoHash,
+          o.deliveryPerson || "",
+          o.itemsSummary || "",
+        ].join(" ").toLowerCase();
+        return words.every(word => haystack.includes(word));
+      });
+    }
     if (ordPayFilter !== "all") list = list.filter(o => String(o.paymentStatus || "").toLowerCase() === ordPayFilter);
     if (ordStatusFilter !== "all") list = list.filter(o => String(o.status || "").toLowerCase() === ordStatusFilter);
     if (ordSort === "total_desc") list.sort((a, b) => (b.total || 0) - (a.total || 0));
