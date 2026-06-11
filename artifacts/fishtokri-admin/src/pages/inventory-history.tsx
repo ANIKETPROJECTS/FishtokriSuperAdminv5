@@ -33,6 +33,7 @@ type Movement = {
   balance: number;
   orderId?: string;
   orderRef?: string;
+  invoiceId?: string;
   customerName?: string;
   subReason?: string;
   reason?: string;
@@ -273,11 +274,13 @@ export default function InventoryHistory() {
                             <p className="font-medium text-[#162B4D]">{m.productName}</p>
                             {m.unit && <p className="text-[11px] text-gray-400">{m.unit}</p>}
                           </td>
-                          <td className="px-4 py-3 min-w-[200px]">
+                          <td className="px-4 py-3 min-w-[220px]">
                             {m.orderRef ? (
                               <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono text-xs font-bold text-[#364F9F] bg-blue-50 px-2 py-0.5 rounded-md">{m.orderRef}</span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-xs font-bold text-[#364F9F] bg-blue-50 px-2 py-0.5 rounded-md">
+                                    {m.invoiceId ? `#${m.invoiceId}` : m.orderRef}
+                                  </span>
                                   {reasonMeta && (
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${reasonMeta.tone}`}>
                                       {reasonMeta.label}

@@ -485,20 +485,27 @@ router.get("/movements", async (req, res) => {
         const ordersConn = await getSubHubDbConnection("orders");
         const orderDocs = await ordersConn.db
           .collection("orders")
-          .find({ _id: { $in: orderIds } }, { projection: { _id: 1, customerName: 1 } })
+          .find({ _id: { $in: orderIds } }, { projection: { _id: 1, customerName: 1, orderId: 1 } })
           .toArray();
         for (const o of orderDocs) {
-          customerMap.set(String(o._id), String(o.customerName ?? ""));
+          customerMap.set(String(o._id), JSON.stringify({ customerName: o.customerName ?? "", invoiceId: o.orderId ?? "" }));
         }
       } catch (e) {
         logger.warn({ err: e }, "movements: failed to enrich customer names — returning without");
       }
     }
 
-    const enriched = rows.map((r: any) => ({
-      ...r,
-      customerName: r.orderId ? (customerMap.get(String(r.orderId)) ?? "") : undefined,
-    }));
+    const enriched = rows.map((r: any) => {
+      if (!r.orderId) return r;
+      const raw = customerMap.get(String(r.orderId));
+      if (!raw) return r;
+      try {
+        const { customerName, invoiceId } = JSON.parse(raw);
+        return { ...r, customerName: customerName || undefined, invoiceId: invoiceId || undefined };
+      } catch {
+        return { ...r, customerName: raw || undefined };
+      }
+    });
 
     res.json({ movements: enriched, total: enriched.length });
   } catch (err) {
