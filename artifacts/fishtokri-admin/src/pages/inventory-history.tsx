@@ -33,6 +33,7 @@ type Movement = {
   balance: number;
   orderId?: string;
   orderRef?: string;
+  subReason?: string;
   reason?: string;
   notes?: string;
   createdAt: string;
@@ -41,6 +42,33 @@ type Movement = {
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+type SubReasonMeta = { label: string; tone: string };
+
+function getSubReasonMeta(m: Movement): SubReasonMeta | null {
+  if (m.type === "adjustment") {
+    return { label: "Manual Adjustment", tone: "bg-blue-50 text-blue-700" };
+  }
+  if (m.type === "order_deduct" || m.type === "order_restore") {
+    switch (m.subReason) {
+      case "order_placed":
+        return { label: "Order Deduction", tone: "bg-red-50 text-red-700" };
+      case "order_cancelled":
+        return { label: "Order Cancelled", tone: "bg-emerald-50 text-emerald-700" };
+      case "order_deleted":
+        return { label: "Order Deleted", tone: "bg-orange-50 text-orange-700" };
+      case "items_changed":
+        return m.type === "order_restore"
+          ? { label: "Items Changed", tone: "bg-emerald-50 text-emerald-700" }
+          : { label: "Items Changed", tone: "bg-amber-50 text-amber-700" };
+      default:
+        return m.type === "order_deduct"
+          ? { label: "Order Deduction", tone: "bg-red-50 text-red-700" }
+          : { label: "Order Restore", tone: "bg-emerald-50 text-emerald-700" };
+    }
+  }
+  return null;
 }
 
 function LockedHubBadge({ label, name, location }: { label: string; name: string; location?: string }) {
@@ -78,7 +106,6 @@ export default function InventoryHistory() {
 
   const adminScope = useMemo(() => getCurrentAdminScope(), []);
 
-  // Auto-select first available super hub
   useEffect(() => {
     if (!superHubs.length) return;
     if (selectedSuperHubId) return;
@@ -97,7 +124,6 @@ export default function InventoryHistory() {
     setSelectedSubHub(null);
   }, [selectedSuperHubId, toast]);
 
-  // Auto-select first available sub hub
   useEffect(() => {
     if (!subHubs.length) return;
     if (selectedSubHubId) return;
@@ -129,14 +155,14 @@ export default function InventoryHistory() {
       return (
         m.productName.toLowerCase().includes(q) ||
         (m.orderRef ?? "").toLowerCase().includes(q) ||
-        (m.reason ?? "").toLowerCase().includes(q)
+        (m.reason ?? "").toLowerCase().includes(q) ||
+        (m.subReason ?? "").toLowerCase().includes(q)
       );
     });
   }, [movements, search, typeFilter]);
 
   const pagedMovements = usePaginated(filtered, 20, `${search}|${typeFilter}`);
 
-  // Header portal content
   const headerSlot = document.getElementById("page-header-slot");
   const headerContent = (
     <div className="flex items-center justify-between w-full gap-4 min-w-0">
@@ -216,16 +242,17 @@ export default function InventoryHistory() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">When</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Change</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Balance</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {loading ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">Loading...</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">Loading...</td></tr>
                     ) : filtered.length === 0 ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">No movements yet</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">No movements yet</td></tr>
                     ) : pagedMovements.pageItems.map((m) => {
                       const isPositive = m.change >= 0;
                       const typeMeta = m.type === "order_deduct"
@@ -233,6 +260,7 @@ export default function InventoryHistory() {
                         : m.type === "order_restore"
                           ? { label: "Order Restore", icon: <ArrowUpCircle className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" }
                           : { label: "Adjustment", icon: <SlidersHorizontal className="w-3.5 h-3.5" />, tone: "bg-blue-50 text-blue-700" };
+                      const reasonMeta = getSubReasonMeta(m);
                       return (
                         <tr key={m._id} className="hover:bg-gray-50/40">
                           <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDateTime(m.createdAt)}</td>
@@ -245,20 +273,31 @@ export default function InventoryHistory() {
                             <p className="font-medium text-[#162B4D]">{m.productName}</p>
                             {m.unit && <p className="text-[11px] text-gray-400">{m.unit}</p>}
                           </td>
+                          <td className="px-4 py-3">
+                            {m.orderRef ? (
+                              <span className="font-mono text-xs font-semibold text-[#364F9F] bg-blue-50 px-2 py-0.5 rounded-md">{m.orderRef}</span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {reasonMeta ? (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${reasonMeta.tone}`}>
+                                {reasonMeta.label}
+                              </span>
+                            ) : m.reason ? (
+                              <div>
+                                <span className="text-xs font-medium text-[#162B4D]">{m.reason}</span>
+                                {m.notes && <p className="text-[11px] text-gray-400 mt-0.5">{m.notes}</p>}
+                              </div>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
                           <td className={`px-4 py-3 text-right font-semibold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
                             {isPositive ? "+" : ""}{m.change}
                           </td>
                           <td className="px-4 py-3 text-right text-gray-700">{m.balance}</td>
-                          <td className="px-4 py-3 text-gray-600">
-                            {m.orderRef ? (
-                              <span className="font-mono text-xs">{m.orderRef}</span>
-                            ) : m.reason ? (
-                              <span>
-                                <span className="font-medium text-[#162B4D]">{m.reason}</span>
-                                {m.notes && <span className="text-gray-400 text-xs"> · {m.notes}</span>}
-                              </span>
-                            ) : <span className="text-gray-300">—</span>}
-                          </td>
                         </tr>
                       );
                     })}

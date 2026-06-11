@@ -908,7 +908,7 @@ async function expandOrderItems(
   return Array.from(aggregated.values());
 }
 
-async function applyDelta(order: OrderForSync, direction: "deduct" | "restore"): Promise<number> {
+async function applyDelta(order: OrderForSync, direction: "deduct" | "restore", subReason?: string): Promise<number> {
   if (!order.subHubId) {
     logger.warn({ orderId: String(order._id) }, "applyDelta: skipped — no subHubId on order");
     return 0;
@@ -1014,7 +1014,7 @@ async function applyDelta(order: OrderForSync, direction: "deduct" | "restore"):
           productName: (after as any)?.name ?? it.name ?? "",
           unit: (after as any)?.unit ?? it.unit ?? "",
           change: -qty, balance: Number((after as any)?.quantity) || 0,
-          orderId, orderRef, createdAt: now,
+          orderId, orderRef, ...(subReason ? { subReason } : {}), createdAt: now,
         });
         deductedCount++;
         continue;
@@ -1063,6 +1063,7 @@ async function applyDelta(order: OrderForSync, direction: "deduct" | "restore"):
       balance: persisted.quantity,
       orderId,
       orderRef,
+      ...(subReason ? { subReason } : {}),
       expiryDate: appliedExpiry || undefined,
       createdAt: now,
     });
@@ -1137,7 +1138,8 @@ export async function autoDeductUndedcutedOrders(
       const deducted = await withDeductionLock(() =>
         applyDelta(
           { _id: order._id, subHubId: order.subHubId, subHubName: order.subHubName, status: order.status, items: order.items },
-          "deduct"
+          "deduct",
+          "order_placed"
         )
       );
       if (deducted === 0) {
@@ -1165,7 +1167,7 @@ export async function autoDeductUndedcutedOrders(
 
 export async function applyOrderInventoryOnCreate(order: OrderForSync) {
   if (!orderShouldDeduct(order)) return false;
-  const deducted = await withDeductionLock(() => applyDelta(order, "deduct"));
+  const deducted = await withDeductionLock(() => applyDelta(order, "deduct", "order_placed"));
   return deducted > 0;
 }
 
@@ -1207,7 +1209,7 @@ export async function runInventoryBackgroundDeduction(): Promise<void> {
 export async function applyOrderInventoryOnDelete(order: OrderForSync, wasDeducted: boolean) {
   if (!wasDeducted) return false;
   if (!order?.subHubId) return false;
-  const restored = await applyDelta(order, "restore");
+  const restored = await applyDelta(order, "restore", "order_deleted");
   return restored > 0;
 }
 
@@ -1223,11 +1225,11 @@ function itemsSignature(items: any): string {
 export async function applyOrderInventoryOnUpdate(prev: OrderForSync, next: OrderForSync, wasDeducted: boolean) {
   const wantsDeducted = orderShouldDeduct(next);
   if (!wasDeducted && wantsDeducted) {
-    await withDeductionLock(() => applyDelta(next, "deduct"));
+    await withDeductionLock(() => applyDelta(next, "deduct", "order_placed"));
     return true;
   }
   if (wasDeducted && !wantsDeducted) {
-    await withDeductionLock(() => applyDelta({ ...prev, _id: next._id }, "restore"));
+    await withDeductionLock(() => applyDelta({ ...prev, _id: next._id }, "restore", "order_cancelled"));
     return false;
   }
   if (wasDeducted && wantsDeducted) {
@@ -1235,8 +1237,8 @@ export async function applyOrderInventoryOnUpdate(prev: OrderForSync, next: Orde
     const nextSig = `${next?.subHubId ?? ""}::${itemsSignature((next as any)?.items)}`;
     if (prevSig !== nextSig) {
       await withDeductionLock(async () => {
-        await applyDelta({ ...prev, _id: next._id }, "restore");
-        await applyDelta(next, "deduct");
+        await applyDelta({ ...prev, _id: next._id }, "restore", "items_changed");
+        await applyDelta(next, "deduct", "items_changed");
       });
     }
     return true;
