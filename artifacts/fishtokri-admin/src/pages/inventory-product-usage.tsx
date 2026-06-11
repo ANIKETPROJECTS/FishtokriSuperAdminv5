@@ -35,10 +35,33 @@ type Movement = {
   balance: number;
   orderId?: string;
   orderRef?: string;
+  invoiceId?: string;
+  customerName?: string;
+  batchNumbers?: string;
+  subReason?: string;
   reason?: string;
   notes?: string;
   createdAt: string;
 };
+
+type SubReasonMeta = { label: string; tone: string };
+function getSubReasonMeta(m: Movement): SubReasonMeta | null {
+  if (m.type === "adjustment") return { label: "Manual Adjustment", tone: "bg-blue-50 text-blue-700" };
+  if (m.type === "order_deduct" || m.type === "order_restore") {
+    switch (m.subReason) {
+      case "order_placed":   return { label: "Order Deduction", tone: "bg-red-50 text-red-700" };
+      case "order_cancelled": return { label: "Order Cancelled", tone: "bg-emerald-50 text-emerald-700" };
+      case "order_deleted":  return { label: "Order Deleted", tone: "bg-orange-50 text-orange-700" };
+      case "items_changed":  return m.type === "order_restore"
+        ? { label: "Items Changed", tone: "bg-emerald-50 text-emerald-700" }
+        : { label: "Items Changed", tone: "bg-amber-50 text-amber-700" };
+      default: return m.type === "order_deduct"
+        ? { label: "Order Deduction", tone: "bg-red-50 text-red-700" }
+        : { label: "Order Restore", tone: "bg-emerald-50 text-emerald-700" };
+    }
+  }
+  return null;
+}
 
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
@@ -330,18 +353,17 @@ export default function InventoryProductUsage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400 w-44">Date & Time</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400 w-44">Event Type</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Source / Reference</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400 w-28">Change</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400 w-28">Balance After</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Notes</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">When</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Change</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Balance</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
+                    <td colSpan={5} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-8 h-8 border-2 border-[#1A56DB] border-t-transparent rounded-full animate-spin" />
                         <p className="text-sm text-gray-400">Loading usage history...</p>
@@ -350,7 +372,7 @@ export default function InventoryProductUsage() {
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
+                    <td colSpan={5} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Activity className="w-8 h-8 text-gray-200" />
                         <p className="text-sm font-semibold text-gray-500">No movements found</p>
@@ -371,7 +393,7 @@ export default function InventoryProductUsage() {
                       lastDay = day;
                       rows.push(
                         <tr key={`day-${day}-${m._id}`} className="bg-gray-50/60">
-                          <td colSpan={6} className="px-5 py-2">
+                          <td colSpan={5} className="px-4 py-2">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-3 h-3 text-gray-400" />
                               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{day}</span>
@@ -381,57 +403,67 @@ export default function InventoryProductUsage() {
                       );
                     }
                     const meta = TYPE_META[m.type] ?? TYPE_META.adjustment;
+                    const reasonMeta = getSubReasonMeta(m);
                     const isPositive = m.change >= 0;
                     rows.push(
-                      <tr key={m._id} className="hover:bg-blue-50/20 transition-colors border-b border-gray-50 last:border-0">
-                        <td className="px-5 py-3.5">
-                          <p className="text-xs font-medium text-gray-700">{fmtDateTime(m.createdAt)}</p>
+                      <tr key={m._id} className="hover:bg-gray-50/40">
+                        {/* When */}
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">{fmtDateTime(m.createdAt)}</td>
+
+                        {/* Type */}
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold w-fit border ${meta.tone}`}>
+                              {meta.icon}{meta.short}
+                            </span>
+                            {m.subReason === "items_changed" && (
+                              <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Due to Order Edit</span>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${meta.tone}`}>
-                            {meta.icon}
-                            {meta.short}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          {m.type === "order_deduct" || m.type === "order_restore" ? (
-                            <div>
-                              <span className="text-xs text-gray-500">
-                                {m.type === "order_deduct" ? "Website / App Order" : "Order Cancellation / Reverse"}
-                              </span>
-                              {m.orderRef && (
-                                <p className="mt-0.5">
-                                  <span className="font-mono text-[11px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">
-                                    {m.orderRef}
+
+                        {/* Order */}
+                        <td className="px-4 py-3 min-w-[220px]">
+                          {m.orderRef ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-xs font-bold text-[#364F9F] bg-blue-50 px-2 py-0.5 rounded-md">
+                                  {m.invoiceId ?? m.orderRef}
+                                </span>
+                                {reasonMeta && (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${reasonMeta.tone}`}>
+                                    {reasonMeta.label}
                                   </span>
-                                </p>
+                                )}
+                              </div>
+                              {m.customerName && (
+                                <p className="text-xs text-gray-500">{m.customerName}</p>
                               )}
                             </div>
                           ) : (
-                            <div>
-                              <span className="text-xs text-gray-500">Admin Adjustment</span>
-                              {m.reason && (
-                                <p className="mt-0.5 text-xs font-semibold text-[#162B4D]">{m.reason}</p>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs text-gray-500">Manual Adjustment</span>
+                              {(m.reason || m.notes) && (
+                                <p className="text-xs font-semibold text-[#162B4D]">{m.reason || m.notes}</p>
                               )}
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+
+                        {/* Change */}
+                        <td className={`px-4 py-3 text-right font-semibold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
+                          <div className="flex items-center justify-end gap-1">
                             {isPositive
-                              ? <ArrowUpCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                              : <ArrowDownCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                              ? <ArrowUpCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                              : <ArrowDownCircle className="w-3.5 h-3.5 flex-shrink-0" />
                             }
-                            <span className={`font-bold text-sm ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
-                              {isPositive ? "+" : ""}{m.change}
-                            </span>
+                            {isPositive ? "+" : ""}{m.change}
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 text-right">
+
+                        {/* Balance */}
+                        <td className="px-4 py-3 text-right">
                           <span className="font-semibold text-sm text-[#162B4D]">{m.balance}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-xs text-gray-400 max-w-[180px]">
-                          {m.notes || <span className="text-gray-200">—</span>}
                         </td>
                       </tr>
                     );
