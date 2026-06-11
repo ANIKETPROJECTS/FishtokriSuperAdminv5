@@ -268,9 +268,14 @@ export default function InventoryHistory() {
                         <tr key={m._id} className="hover:bg-gray-50/40">
                           <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDateTime(m.createdAt)}</td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${typeMeta.tone}`}>
-                              {typeMeta.icon}{typeMeta.label}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold w-fit ${typeMeta.tone}`}>
+                                {typeMeta.icon}{typeMeta.label}
+                              </span>
+                              {m.subReason === "items_changed" && (
+                                <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Due to Order Edit</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <p className="font-medium text-[#162B4D]">{m.productName}</p>
@@ -281,7 +286,7 @@ export default function InventoryHistory() {
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-mono text-xs font-bold text-[#364F9F] bg-blue-50 px-2 py-0.5 rounded-md">
-                                    {m.invoiceId ? `#${m.invoiceId}` : m.orderRef}
+                                    {m.invoiceId ?? m.orderRef}
                                   </span>
                                   {reasonMeta && (
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${reasonMeta.tone}`}>
