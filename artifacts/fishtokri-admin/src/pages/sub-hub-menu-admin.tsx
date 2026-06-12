@@ -2560,7 +2560,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
   const [subCategory, setSubCategory] = useState("");
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
-  const [unit, setUnit] = useState("per pack");
+  const [unit, setUnit] = useState("pack");
   const [grossWeight, setGrossWeight] = useState("");
   const [netWeight, setNetWeight] = useState("");
   const [pieces, setPieces] = useState("");
@@ -2599,7 +2599,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
       setSubCategory(product.subCategory ?? "");
       setPrice(String(product.price ?? ""));
       setOriginalPrice(String(product.originalPrice ?? ""));
-      setUnit(product.unit ?? "per pack");
+      setUnit(product.unit ?? "pack");
       setGrossWeight(product.grossWeight ?? "");
       setNetWeight(product.netWeight ?? "");
       setPieces(product.pieces ?? "");
@@ -2636,7 +2636,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
         .finally(() => setBatchesLoading(false));
     } else {
       setName(""); setShortCode(""); setDescription(""); setCategory(""); setSubCategory("");
-      setPrice(""); setOriginalPrice(""); setUnit("per pack");
+      setPrice(""); setOriginalPrice(""); setUnit("pack");
       setGrossWeight(""); setNetWeight(""); setPieces(""); setServes(""); setQuantity("0"); setStatus("available");
       setIsArchived(false); setProductImageUrl(""); setProductImageMode("url"); setRecipes([]);
       setCouponIds([]);
@@ -2836,7 +2836,7 @@ function ProductModal({ isOpen, onClose, product, subHubId, categories, onSaved 
                 <Select value={unit} onValueChange={setUnit}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["per kg", "per 500g", "per 250g", "per 100g", "per tray", "per pack", "per piece", "pack"].map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    {["per kg", "per 500g", "per 250g", "per 100g", "per tray", "pack", "per piece"].map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
