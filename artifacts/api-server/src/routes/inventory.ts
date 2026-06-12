@@ -1330,4 +1330,33 @@ router.post("/reset-deduction-flags", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/inventory/migrate-unit-names
+ * One-time migration: renames unit "per pack" → "pack" across all sub-hub product collections.
+ */
+router.post("/migrate-unit-names", async (_req, res) => {
+  try {
+    const subs = await SubHub.find({ dbName: { $exists: true, $ne: "" } }).lean();
+    let totalUpdated = 0;
+    const results: { subHub: string; updated: number }[] = [];
+    for (const sub of subs) {
+      if (!sub.dbName) continue;
+      const conn = await getSubHubDbConnection(sub.dbName);
+      const result = await conn.db.collection("products").updateMany(
+        { unit: "per pack" },
+        { $set: { unit: "pack" } }
+      );
+      totalUpdated += result.modifiedCount;
+      if (result.modifiedCount > 0) {
+        results.push({ subHub: sub.name ?? sub.dbName, updated: result.modifiedCount });
+      }
+    }
+    logger.info({ totalUpdated, results }, "migrate-unit-names: complete");
+    res.json({ message: `Renamed "per pack" → "pack" on ${totalUpdated} product(s).`, totalUpdated, results });
+  } catch (err: any) {
+    logger.error({ err }, "migrate-unit-names: failed");
+    res.status(500).json({ error: "InternalError", message: err.message });
+  }
+});
+
 export default router;

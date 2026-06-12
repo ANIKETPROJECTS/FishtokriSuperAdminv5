@@ -133,7 +133,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
   const handlePrint = async () => {
     const itemRows = items.map((it:any) => {
       const qty = Number(it.quantity)||1, rate = Number(it.price)||0;
-      return `<tr><td style="padding:5px 4px;border-bottom:1px solid #eee;">${it.name}</td><td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${qty}${it.unit?` ${it.unit}`:""}</td><td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${rate.toFixed(2)}</td><td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${(qty*rate).toFixed(2)}</td></tr>`;
+      return `<tr><td style="padding:5px 4px;border-bottom:1px solid #eee;">${it.name}</td><td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${qty}${it.unit?` ${it.unit==="per pack"?"pack":it.unit}`:""}</td><td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${rate.toFixed(2)}</td><td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${(qty*rate).toFixed(2)}</td></tr>`;
     }).join("");
     const slotRow = slotCharge>0 ? `<tr><td style="padding:4px 2px;" colspan="3">Slot Charge :</td><td style="padding:4px 2px;text-align:right;">+ ${slotCharge.toFixed(2)}</td></tr>` : "";
     const delivRow = deliveryCharge>0 ? `<tr><td style="padding:4px 2px;" colspan="3">${order.isExpress ? "Porter Charge" : "Delivery Charge"} :</td><td style="padding:4px 2px;text-align:right;">+ ${deliveryCharge.toFixed(2)}</td></tr>` : "";
@@ -192,7 +192,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((it:any,i:number)=>{const qty=Number(it.quantity)||1,rate=Number(it.price)||0;return(<tr key={i}><td className="py-1">{it.name}</td><td className="py-1 text-right">{qty}{it.unit?` ${it.unit}`:""}</td><td className="py-1 text-right">{rate.toFixed(2)}</td><td className="py-1 text-right">{(qty*rate).toFixed(2)}</td></tr>);})}
+                {items.map((it:any,i:number)=>{const qty=Number(it.quantity)||1,rate=Number(it.price)||0;return(<tr key={i}><td className="py-1">{it.name}</td><td className="py-1 text-right">{qty}{it.unit?` ${it.unit==="per pack"?"pack":it.unit}`:""}</td><td className="py-1 text-right">{rate.toFixed(2)}</td><td className="py-1 text-right">{(qty*rate).toFixed(2)}</td></tr>);})}
                 <tr className="border-t border-gray-400"><td className="py-1"><b>Total Items: {items.length}</b></td><td className="py-1 text-right"><b>{totalQty}</b></td><td/><td className="py-1 text-right"><b>{subtotal.toFixed(2)}</b></td></tr>
                 {couponAmt > 0 && <tr><td className="py-1" colSpan={3}>Coupon{order.couponCode ? ` (${order.couponCode})` : ""} :</td><td className="py-1 text-right">- {couponAmt.toFixed(2)}</td></tr>}
                 {extraDiscAmt > 0 && <tr><td className="py-1" colSpan={3}>Extra discount{extraDiscType === "percentage" ? " (%)" : ""} :</td><td className="py-1 text-right">- {extraDiscAmt.toFixed(2)}</td></tr>}

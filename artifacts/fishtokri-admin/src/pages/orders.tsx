@@ -340,7 +340,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
       return `
         <tr>
           <td style="padding:5px 4px;border-bottom:1px solid #eee;">${it.name}</td>
-          <td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${qty}${it.unit ? ` ${it.unit}` : ""}</td>
+          <td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${qty}${it.unit ? ` ${it.unit === "per pack" ? "pack" : it.unit}` : ""}</td>
           <td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${rate.toFixed(2)}</td>
           <td style="padding:5px 4px;border-bottom:1px solid #eee;text-align:right;">${(qty * rate).toFixed(2)}</td>
         </tr>`;
@@ -533,7 +533,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
                   return (
                     <tr key={i}>
                       <td className="py-1">{it.name}</td>
-                      <td className="py-1 text-right">{qty}{it.unit ? ` ${it.unit}` : ""}</td>
+                      <td className="py-1 text-right">{qty}{it.unit ? ` ${it.unit === "per pack" ? "pack" : it.unit}` : ""}</td>
                       <td className="py-1 text-right">{rate.toFixed(2)}</td>
                       <td className="py-1 text-right">{(qty * rate).toFixed(2)}</td>
                     </tr>
