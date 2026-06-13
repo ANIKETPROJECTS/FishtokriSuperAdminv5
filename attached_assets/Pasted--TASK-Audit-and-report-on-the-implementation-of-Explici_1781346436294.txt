@@ -1,0 +1,55 @@
+```
+TASK: Audit and report on the implementation of Explicit Suppression
+Parameters in the SDC privacy enhancement module.
+
+For EACH of the following settings/options/variables, inspect the actual
+code (not just the UI) and report back:
+1. What the setting is supposed to do (per spec/UI description)
+2. What the code currently does when this setting changes
+3. Whether changing it produces any observable difference in output
+
+Settings to audit:
+
+1. SUPPRESSION MODE (Row / Cell / Both)
+   - Does "Row" mode skip cell-level masking entirely?
+   - Does "Cell" mode skip row removal entirely?
+   - Does "Both" do both, or does one silently override the other?
+
+2. SUPPRESSION CRITERION (Uniqueness / Outlier / Sensitive Value / Threshold)
+   - For each of the 4 options, is there a SEPARATE code branch/function?
+   - Or do all 4 call the same underlying "group size < min" check
+     regardless of selection?
+   - Specifically trace: does selecting "Outlier" actually compute a
+     z-score anywhere? Does "Sensitive Value" actually check SA membership
+     against "Risk Values"? Does "Threshold" actually compare values
+     against "Bounds"?
+
+3. SUPPRESSION BUDGET (0-30% slider)
+   - Confirm the cap formula: max_suppress = ceil(budget% × N)
+   - Confirm "candidates beyond budget are spared" logic is applied
+     consistently for ALL 4 criteria, not just Uniqueness
+
+4. MIN GROUP SIZE (slider, used by Uniqueness)
+   - Confirm this value is actually passed into the group-size comparison
+   - Confirm changing it changes the candidate count
+
+5. MIN CELL FREQUENCY (slider, used by Cell suppression)
+   - Confirm this drives the "value freq < N → mask as ***" logic
+   - Confirm it applies independently of which row-criterion is selected
+
+6. Z THRESHOLD (shown only for Outlier)
+   - Confirm this variable is read and used in an actual z-score
+     computation, vs. just displayed and ignored
+
+7. RISK VALUES (shown only for Sensitive Value)
+   - Confirm this list is read and used to filter rows where SA value is
+     in the list, vs. just displayed and ignored
+
+8. BOUNDS (shown only for Threshold)
+   - Confirm [min, max] bounds are read and used to flag out-of-range
+     values, vs. just displayed and ignored
+
+For each item, give a SHORT note: "implemented and wired correctly" /
+"UI-only, not connected to logic" / "partially implemented: <describe>".
+Report back per-item so it can be verified against test runs.
+```
