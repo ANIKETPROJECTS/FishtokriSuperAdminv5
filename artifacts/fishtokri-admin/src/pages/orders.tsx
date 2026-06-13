@@ -547,32 +547,32 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
                 </tr>
                 {couponAmt > 0 && (
                   <tr>
-                    <td className="py-1" colSpan={3}>Coupon{order.couponCode ? ` (${order.couponCode})` : ""} :</td>
-                    <td className="py-1 text-right">- {couponAmt.toFixed(2)}</td>
+                    <td className="py-1.5" colSpan={3}>Coupon{order.couponCode ? ` (${order.couponCode})` : ""} :</td>
+                    <td className="py-1.5 text-right">- {couponAmt.toFixed(2)}</td>
                   </tr>
                 )}
                 {extraDiscAmt > 0 && (
                   <tr>
-                    <td className="py-1" colSpan={3}>Extra discount{extraDiscType === "percentage" ? " (%)" : ""} :</td>
-                    <td className="py-1 text-right">- {extraDiscAmt.toFixed(2)}</td>
+                    <td className="py-1.5" colSpan={3}>Extra discount{extraDiscType === "percentage" ? " (%)" : ""} :</td>
+                    <td className="py-1.5 text-right">- {extraDiscAmt.toFixed(2)}</td>
                   </tr>
                 )}
                 {couponAmt === 0 && extraDiscAmt === 0 && discount > 0 && (
                   <tr>
-                    <td className="py-1" colSpan={3}>Discount :</td>
-                    <td className="py-1 text-right">- {discount.toFixed(2)}</td>
+                    <td className="py-1.5" colSpan={3}>Discount :</td>
+                    <td className="py-1.5 text-right">- {discount.toFixed(2)}</td>
                   </tr>
                 )}
                 {slotCharge > 0 && (
                   <tr>
-                    <td className="py-1" colSpan={3}>Slot Charge :</td>
-                    <td className="py-1 text-right">+ {slotCharge.toFixed(2)}</td>
+                    <td className="py-1.5" colSpan={3}>Slot Charge :</td>
+                    <td className="py-1.5 text-right">+ {slotCharge.toFixed(2)}</td>
                   </tr>
                 )}
                 {deliveryCharge > 0 && (
                   <tr>
-                    <td className="py-1" colSpan={3}>{order.isExpress ? "Porter Charge" : "Delivery Charge"} :</td>
-                    <td className="py-1 text-right">+ {deliveryCharge.toFixed(2)}</td>
+                    <td className="py-1.5" colSpan={3}>{order.isExpress ? "Porter Charge" : "Delivery Charge"} :</td>
+                    <td className="py-1.5 text-right">+ {deliveryCharge.toFixed(2)}</td>
                   </tr>
                 )}
               </tbody>
@@ -580,30 +580,30 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
 
             <div className="border-t border-dashed border-gray-400 my-2" />
 
-            <div className="flex justify-between text-[15px] font-bold">
+            <div className="flex justify-between text-[19px] font-bold">
               <span>Grand Total:</span>
               <span>{grandTotal.toFixed(2)}</span>
             </div>
             {walletInvAmt > 0 && (
-              <div className="flex justify-between text-[13px] mt-1">
+              <div className="flex justify-between text-[17px] mt-1">
                 <span>Wallet Applied:</span>
                 <span>− {walletInvAmt.toFixed(2)}</span>
               </div>
             )}
             {walletInvAmt > 0 && (
-              <div className="flex justify-between text-[14px] font-bold mt-0.5">
+              <div className="flex justify-between text-[18px] font-bold mt-0.5">
                 <span>Balance Due (Cash/UPI):</span>
                 <span>{Math.max(0, grandTotal - walletInvAmt).toFixed(2)}</span>
               </div>
             )}
             {(order.paidAmount !== undefined || order.dueAmount !== undefined) && (
-              <div className="flex justify-between text-[12px] mt-2">
+              <div className="flex justify-between text-[15px] mt-2">
                 <span>Paid: <strong className="text-green-600">{formatRupees(paidAmt)}</strong></span>
                 <span>Due: <strong className={dueAmt > 0 ? "text-red-500" : "text-green-600"}>{formatRupees(dueAmt)}</strong></span>
               </div>
             )}
 
-            <div className="text-center text-[12px] text-gray-600 mt-3">
+            <div className="text-center text-[15px] text-gray-600 mt-3">
               Thank you for your business!<br />
               For any query - 9220200100
             </div>
