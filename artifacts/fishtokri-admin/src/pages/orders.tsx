@@ -401,17 +401,13 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
         <div style="border-top:1px dashed #999;margin:8px 0;"></div>
         <div style="text-align:center;font-size:17px;color:#555;margin-bottom:8px;">Mobile No: ${order.phone || "—"}</div>
 
-        <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:17px;">
-          <span><b>Invoice No:</b> ${invoiceNo}</span>
-          <span><b>Date:</b> ${dateStr}</span>
+        <div style="margin:4px 0;font-size:17px;"><b>Invoice No:</b> ${invoiceNo}</div>
+        <div style="margin:4px 0;font-size:17px;"><b>Date:</b> ${dateStr}</div>
+        <div style="margin:4px 0;font-size:17px;">
+          <b>Payment Mode:</b> ${payMode}
+          <span style="margin-left:5px;font-size:14px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:20px;border:1px solid ${payStatusColor};color:${payStatusColor};background:${payStatusBg};">${payLabel}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0;font-size:17px;">
-          <span>
-            <b>Payment Mode:</b> ${payMode}
-            <span style="margin-left:5px;font-size:14px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:20px;border:1px solid ${payStatusColor};color:${payStatusColor};background:${payStatusBg};">${payLabel}</span>
-          </span>
-          <span><b>Time:</b> ${timeStr}</span>
-        </div>
+        <div style="margin:4px 0;font-size:17px;"><b>Time:</b> ${timeStr}</div>
 
         <div style="border-top:1px dashed #999;margin:8px 0;"></div>
 
@@ -489,24 +485,20 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
             <div className="border-t border-dashed border-gray-400 my-2" />
             <div className="text-center text-[15px]">Mobile No: {order.phone || "—"}</div>
 
-            <div className="flex justify-between mt-2 text-[15px]">
-              <span><b>Invoice No:</b> {invoiceNo}</span>
-              <span><b>Date:</b> {dateStr}</span>
-            </div>
-            <div className="flex justify-between text-[15px]">
-              <span>
-                <b>Payment Mode:</b> {payMode}
-                <span className={`ml-1 text-[13px] font-bold uppercase px-1.5 py-0.5 rounded-full border
-                  ${order.paymentStatus === 'paid'
-                    ? 'text-green-700 bg-green-50 border-green-200'
-                    : order.paymentStatus === 'partial'
-                      ? 'text-amber-700 bg-amber-50 border-amber-200'
-                      : 'text-red-700 bg-red-50 border-red-200'}`}>
-                  {payLabel}
-                </span>
+            <div className="mt-2 text-[15px]"><b>Invoice No:</b> {invoiceNo}</div>
+            <div className="text-[15px]"><b>Date:</b> {dateStr}</div>
+            <div className="text-[15px]">
+              <b>Payment Mode:</b> {payMode}
+              <span className={`ml-1 text-[13px] font-bold uppercase px-1.5 py-0.5 rounded-full border
+                ${order.paymentStatus === 'paid'
+                  ? 'text-green-700 bg-green-50 border-green-200'
+                  : order.paymentStatus === 'partial'
+                    ? 'text-amber-700 bg-amber-50 border-amber-200'
+                    : 'text-red-700 bg-red-50 border-red-200'}`}>
+                {payLabel}
               </span>
-              <span><b>Time:</b> {timeStr}</span>
             </div>
+            <div className="text-[15px]"><b>Time:</b> {timeStr}</div>
 
             <div className="border-t border-dashed border-gray-400 my-2" />
 
