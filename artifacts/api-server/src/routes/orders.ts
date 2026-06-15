@@ -1314,7 +1314,7 @@ router.put("/:id", async (req: ScopedRequest, res) => {
       status, notes,
       assignedDeliveryPersonId, assignedDeliveryPersonName,
       customerName, phone, email, address, deliveryArea, deliveryAddressDetail,
-      paymentStatus, payments, paidAmount, paymentMode,
+      paymentStatus, payments, paidAmount, paymentMode, upiVariant,
       items, deliveryType,
       superHubId, superHubName, subHubId, subHubName,
       scheduleType, deliveryDate, timeslotId, timeslotLabel, timeslotStart, timeslotEnd,
@@ -1382,6 +1382,7 @@ router.put("/:id", async (req: ScopedRequest, res) => {
       update.paymentStatus = String(paymentStatus);
     }
     if (paymentMode !== undefined) update.paymentMode = paymentMode ? String(paymentMode) : "";
+    if (upiVariant !== undefined) update.upiVariant = upiVariant ? String(upiVariant).trim() : null;
     if (Array.isArray(payments)) {
       update.payments = payments
         .map((p: any) => ({

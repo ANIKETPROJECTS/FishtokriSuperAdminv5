@@ -66,13 +66,14 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
       const items: any[] = Array.isArray(o.items) ? o.items : [];
       const payments: any[] = Array.isArray(o.payments) ? o.payments : [];
 
-      // Derive payment mode label
+      // Derive payment mode label (use upiVariant when the mode is UPI)
+      const upiLabel = o.upiVariant ? String(o.upiVariant).trim() : "UPI";
       let paymentMode = "—";
       if (payments.length > 0) {
         const modes = [...new Set(payments.map((p: any) => (p.mode || "").toLowerCase()).filter(Boolean))];
         paymentMode = modes.map((m: string) => {
           if (m === "cash" || m === "cod") return "Cash";
-          if (m === "upi") return "UPI";
+          if (m === "upi") return upiLabel;
           if (m === "card") return "Card";
           if (m === "wallet") return "Wallet";
           if (m === "bank") return "Bank";
@@ -81,7 +82,7 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
       } else if (o.paymentMode) {
         const m = String(o.paymentMode).toLowerCase();
         if (m === "cash" || m === "cod") paymentMode = "Cash";
-        else if (m === "upi") paymentMode = "UPI";
+        else if (m === "upi") paymentMode = upiLabel;
         else if (m === "card") paymentMode = "Card";
         else if (m === "wallet") paymentMode = "Wallet";
         else paymentMode = o.paymentMode;
@@ -130,6 +131,7 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
         })),
         deliveryPerson: o.assignedDeliveryPersonName || "—",
         paymentMode,
+        upiVariant: o.upiVariant || null,
         paymentStatus,
         status: o.status || "—",
         deliveryDate: o.deliveryDate || "",
