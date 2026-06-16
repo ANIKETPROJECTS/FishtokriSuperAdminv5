@@ -16,7 +16,7 @@ declare global {
 }
 
 const QZ_CDN_URL = "https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js";
-const PREFERRED_PRINTER = "POS-80C (copy 2)";
+const PREFERRED_PRINTERS = ["POS-80C (copy 2)", "POS-80(copy of 1)"];
 const CONNECT_TIMEOUT_MS = 5_000;
 
 // ─── SCRIPT LOADER ────────────────────────────────────────────────────────────
@@ -133,12 +133,14 @@ async function ensureConnected(): Promise<void> {
 async function resolvePrinter(): Promise<string> {
   const qz = window.qz;
 
-  try {
-    const found = await qz.printers.find(PREFERRED_PRINTER);
-    const name = Array.isArray(found) ? found[0] : found;
-    if (name && typeof name === "string" && name.trim().length > 0) return name;
-  } catch {
-    // preferred printer not found — fall through
+  for (const preferred of PREFERRED_PRINTERS) {
+    try {
+      const found = await qz.printers.find(preferred);
+      const name = Array.isArray(found) ? found[0] : found;
+      if (name && typeof name === "string" && name.trim().length > 0) return name;
+    } catch {
+      // this preferred printer not found — try next
+    }
   }
 
   const all = await qz.printers.find();
