@@ -273,6 +273,11 @@ function App() {
               <RedirectTo to="/hubs" />
             </Route>
 
+            {/* Fish Purchase Calculator — redirect base path to first sub-page */}
+            <Route path="/fish-calculator">
+              <RedirectTo to="/fish-calculator/price" />
+            </Route>
+
             {/* Fish Purchase Calculator — Master Admin only */}
             <Route path="/fish-calculator/price">
               <ProtectedRoute component={FishCalculatorPrice} allowedRoles={MASTER_ONLY} />
