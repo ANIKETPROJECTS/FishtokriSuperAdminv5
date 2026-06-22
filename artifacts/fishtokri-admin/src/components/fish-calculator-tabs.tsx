@@ -16,7 +16,7 @@ export function FishCalculatorTabs() {
   if (!slot) return null;
 
   return createPortal(
-    <nav className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
+    <nav className="flex items-center gap-0.5 overflow-x-auto scrollbar-none ml-auto">
       {TABS.map(({ href, label, icon: Icon }) => {
         const active = location === href;
         return (

@@ -178,7 +178,7 @@ export default function FishCalculatorPricePage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 space-y-6">
       <FishCalculatorTabs />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Price Calculator</h1>
