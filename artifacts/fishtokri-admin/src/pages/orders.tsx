@@ -337,6 +337,8 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
     order.paymentStatus === "paid" ? "Paid" :
     order.paymentStatus === "partial" ? "Partial" : "Unpaid";
 
+  const [activeTab, setActiveTab] = React.useState<"customer" | "kot">("customer");
+
   const handlePrint = async () => {
     const itemRows = items.map((it: any) => {
       const qty = Number(it.quantity) || 1;
@@ -344,118 +346,41 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
       return `<tr><td style="padding:5px 4px;border:1px solid #bbb;font-weight:700;font-size:14px;word-break:break-word;">${it.name}</td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-size:14px;">${qty}</td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-size:14px;">${rate.toFixed(2)}</td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-size:14px;">${(qty * rate).toFixed(2)}</td></tr>`;
     }).join("");
 
-    const walletRow = walletInvAmt > 0 ? `
-      <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:17px;">
-        <span>Wallet Applied:</span><span>− ${walletInvAmt.toFixed(2)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:18px;font-weight:700;">
-        <span>Balance Due (Cash/UPI):</span><span>${Math.max(0, grandTotal - walletInvAmt).toFixed(2)}</span>
-      </div>` : "";
+    const kotItemRows = items.map((it: any) => {
+      const qty = Number(it.quantity) || 1;
+      return `<tr><td style="padding:5px 4px;border:1px solid #bbb;font-weight:700;font-size:15px;word-break:break-word;">${it.name}</td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-size:15px;">${qty}</td></tr>`;
+    }).join("");
 
-    const paidDueRow = (order.paidAmount !== undefined || order.dueAmount !== undefined) ? `
-      <div style="display:flex;justify-content:space-between;margin:8px 0 0;font-size:17px;">
-        <span>Paid: <strong style="color:#16a34a;">₹${paidAmt.toFixed(2)}</strong></span>
-        <span>Due: <strong style="color:${dueAmt > 0 ? "#ef4444" : "#16a34a"};">₹${dueAmt.toFixed(2)}</strong></span>
-      </div>` : "";
-
-    const notesRow = order.notes ? `
-      <div style="margin:4px 0;font-size:17px;"><b>Notes : ${order.notes}</b></div>` : "";
-
+    const walletRow = walletInvAmt > 0 ? `<div style="display:flex;justify-content:space-between;margin:4px 0;font-size:17px;"><span>Wallet Applied:</span><span>− ${walletInvAmt.toFixed(2)}</span></div><div style="display:flex;justify-content:space-between;margin:4px 0;font-size:18px;font-weight:700;"><span>Balance Due (Cash/UPI):</span><span>${Math.max(0, grandTotal - walletInvAmt).toFixed(2)}</span></div>` : "";
+    const paidDueRow = (order.paidAmount !== undefined || order.dueAmount !== undefined) ? `<div style="display:flex;justify-content:space-between;margin:8px 0 0;font-size:17px;"><span>Paid: <strong style="color:#16a34a;">₹${paidAmt.toFixed(2)}</strong></span><span>Due: <strong style="color:${dueAmt > 0 ? "#ef4444" : "#16a34a"};">₹${dueAmt.toFixed(2)}</strong></span></div>` : "";
+    const notesRow = order.notes ? `<div style="margin:4px 0;font-size:17px;"><b>Notes : ${order.notes}</b></div>` : "";
     const slotRow = slotCharge > 0 ? `<tr><td style="padding:4px 2px;border:1px solid #bbb;" colspan="3">Slot Charge :</td><td style="padding:4px 2px;border:1px solid #bbb;text-align:right;">+ ${slotCharge.toFixed(2)}</td></tr>` : "";
-
     const deliveryRow = deliveryCharge > 0 ? `<tr><td style="padding:4px 2px;border:1px solid #bbb;" colspan="3">${order.isExpress ? "Porter Charge" : "Delivery Charge"} :</td><td style="padding:4px 2px;border:1px solid #bbb;text-align:right;">+ ${deliveryCharge.toFixed(2)}</td></tr>` : "";
-
     const discountRows = [
       couponAmt > 0 ? `<tr><td style="padding:4px 2px;border:1px solid #bbb;" colspan="3">Coupon${order.couponCode ? ` (${order.couponCode})` : ""} :</td><td style="padding:4px 2px;border:1px solid #bbb;text-align:right;">- ${couponAmt.toFixed(2)}</td></tr>` : "",
       extraDiscAmt > 0 ? `<tr><td style="padding:4px 2px;border:1px solid #bbb;" colspan="3">Extra discount${extraDiscType === "percentage" ? " (%)" : ""} :</td><td style="padding:4px 2px;border:1px solid #bbb;text-align:right;">- ${extraDiscAmt.toFixed(2)}</td></tr>` : "",
       couponAmt === 0 && extraDiscAmt === 0 && discount > 0 ? `<tr><td style="padding:4px 2px;border:1px solid #bbb;" colspan="3">Discount :</td><td style="padding:4px 2px;border:1px solid #bbb;text-align:right;">- ${discount.toFixed(2)}</td></tr>` : "",
     ].join("");
-
     const payStatusColor = order.paymentStatus === "paid" ? "#15803d" : order.paymentStatus === "partial" ? "#b45309" : "#b91c1c";
     const payStatusBg = order.paymentStatus === "paid" ? "#f0fdf4" : order.paymentStatus === "partial" ? "#fffbeb" : "#fef2f2";
 
-    const htmlContent = `<!DOCTYPE html><html><head>
-      <meta charset="utf-8"/>
-      <title>${invoiceNo}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; color: #111; background: #fff; }
-        @page { size: 80mm auto; margin: 0; }
-      </style>
-    </head><body>
-      <div style="padding:6px 10px;font-size:18px;color:#111;">
+    const headerHtml = `<div style="text-align:center;margin-bottom:4px;"><h2 style="font-size:22px;font-weight:800;margin:0 0 4px;">FISHTOKRI (ATHA FOODS Pvt Ltd)</h2><div style="display:flex;justify-content:space-between;font-size:14px;margin-top:4px;"><div style="text-align:left;max-width:55%;"><div><b>ADD :</b> Shop no.2, wing R7/214, khartan road, Thane west - 400601</div><div><b>Mob No :</b> 9220200100</div></div><div style="text-align:right;"><div><b>GST No :</b> 27AAOCA7628P1ZT</div><div><b>FSSAI No :</b> 21521066000481</div></div></div></div>`;
+    const commonInfoHtml = `<div style="border-top:1px dashed #999;margin:8px 0;"></div><div style="margin:4px 0;font-size:17px;"><b>Invoice :</b> ${invoiceNo}</div><div style="margin:4px 0;font-size:17px;"><b>Name :</b> ${order.customerName}</div><div style="margin:4px 0;font-size:17px;"><b>Mobile :</b> ${order.phone || "—"}</div>${order.address ? `<div style="margin:4px 0;font-size:17px;"><b>Address :</b> ${order.address}</div>` : ""}<div style="border-top:1px dashed #999;margin:8px 0;"></div><div style="margin:4px 0;font-size:17px;"><b>Order Date :</b> ${orderDateStr} , ${timeStr}</div><div style="margin:4px 0;font-size:17px;"><b>Delivery Date :</b> ${deliveryDateStr}</div>${(order.isExpress || formatTimeSlot(order)) ? `<div style="margin:4px 0;font-size:17px;"><b>Delivery Slot :</b> ${order.isExpress ? "Express order by Porter" : formatTimeSlot(order)}</div>` : ""}${notesRow}`;
 
-        <div style="text-align:center;margin-bottom:4px;">
-          <h2 style="font-size:22px;font-weight:800;margin:0 0 4px;">FISHTOKRI (ATHA FOODS Pvt Ltd)</h2>
-          <div style="display:flex;justify-content:space-between;font-size:14px;margin-top:4px;">
-            <div style="text-align:left;max-width:55%;"><div><b>ADD :</b> Shop no.2, wing R7/214, khartan road, Thane west - 400601</div><div><b>Mob No :</b> 9220200100</div></div>
-            <div style="text-align:right;"><div><b>GST No :</b> 27AAOCA7628P1ZT</div><div><b>FSSAI No :</b> 21521066000481</div></div>
-          </div>
-        </div>
-        <div style="border-top:1px dashed #999;margin:8px 0;"></div>
+    const customerBody = `<div style="padding:6px 10px;font-size:18px;color:#111;">${headerHtml}${commonInfoHtml}<div style="margin:4px 0;font-size:17px;"><b>Payment :</b> ${payMode} <span style="margin-left:5px;font-size:14px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:20px;border:1px solid ${payStatusColor};color:${payStatusColor};background:${payStatusBg};">${payLabel}</span></div><div style="border-top:1px dashed #999;margin:8px 0;"></div><table style="width:100%;border-collapse:collapse;font-size:14px;margin:4px 0;"><thead><tr><th style="padding:5px 4px;border:1px solid #bbb;text-align:left;font-weight:700;background:#f5f5f5;">Item</th><th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;white-space:nowrap;">Qty</th><th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;white-space:nowrap;">Rate</th><th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;white-space:nowrap;">Amount</th></tr></thead><tbody>${itemRows}<tr><td style="padding:5px 4px;border:1px solid #bbb;font-weight:700;">Total Items: ${items.length}</td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;">${totalQty}</td><td style="padding:5px 4px;border:1px solid #bbb;"></td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;">${subtotal.toFixed(2)}</td></tr>${discountRows}${slotRow}${deliveryRow}</tbody></table><div style="border-top:1px dashed #999;margin:8px 0;"></div><div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;margin:4px 0;"><span>Grand Total:</span><span>${grandTotal.toFixed(2)}</span></div>${walletRow}${paidDueRow}<div style="text-align:center;font-size:15px;color:#555;line-height:1.8;margin-top:14px;">Thank you for your business!<br/>For any query - 9220200100</div></div>`;
 
-        <div style="margin:4px 0;font-size:17px;"><b>Invoice :</b> ${invoiceNo}</div>
-        <div style="margin:4px 0;font-size:17px;"><b>Name :</b> ${order.customerName}</div>
-        <div style="margin:4px 0;font-size:17px;"><b>Mobile :</b> ${order.phone || "—"}</div>
-        ${order.address ? `<div style="margin:4px 0;font-size:17px;"><b>Address :</b> ${order.address}</div>` : ""}
+    const kotBody = `<div style="padding:6px 10px;font-size:18px;color:#111;">${headerHtml}<div style="border-top:1px dashed #999;margin:8px 0;"></div><div style="text-align:center;font-weight:800;font-size:18px;letter-spacing:1px;margin:4px 0;">— KOT —</div>${commonInfoHtml}<div style="border-top:1px dashed #999;margin:8px 0;"></div><table style="width:100%;border-collapse:collapse;font-size:15px;margin:4px 0;"><thead><tr><th style="padding:5px 4px;border:1px solid #bbb;text-align:left;font-weight:700;background:#f5f5f5;">Item</th><th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;">Qty</th></tr></thead><tbody>${kotItemRows}<tr><td style="padding:5px 4px;border:1px solid #bbb;font-weight:700;">Total Items: ${items.length}</td><td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;">${totalQty}</td></tr></tbody></table></div>`;
 
-        <div style="border-top:1px dashed #999;margin:8px 0;"></div>
-
-        <div style="margin:4px 0;font-size:17px;"><b>Order Date :</b> ${orderDateStr} , ${timeStr}</div>
-        <div style="margin:4px 0;font-size:17px;"><b>Delivery Date :</b> ${deliveryDateStr}</div>
-        ${(order.isExpress || formatTimeSlot(order)) ? `<div style="margin:4px 0;font-size:17px;"><b>Delivery Slot :</b> ${order.isExpress ? "Express order by Porter" : formatTimeSlot(order)}</div>` : ""}
-        ${notesRow}
-        <div style="margin:4px 0;font-size:17px;"><b>Payment :</b> ${payMode} <span style="margin-left:5px;font-size:14px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:20px;border:1px solid ${payStatusColor};color:${payStatusColor};background:${payStatusBg};">${payLabel}</span></div>
-
-        <div style="border-top:1px dashed #999;margin:8px 0;"></div>
-
-        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:4px 0;">
-          <thead>
-            <tr>
-              <th style="padding:5px 4px;border:1px solid #bbb;text-align:left;font-weight:700;background:#f5f5f5;">Item</th>
-              <th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;white-space:nowrap;">Qty</th>
-              <th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;white-space:nowrap;">Rate</th>
-              <th style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;background:#f5f5f5;white-space:nowrap;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemRows}
-            <tr>
-              <td style="padding:5px 4px;border:1px solid #bbb;font-weight:700;">Total Items: ${items.length}</td>
-              <td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;">${totalQty}</td>
-              <td style="padding:5px 4px;border:1px solid #bbb;"></td>
-              <td style="padding:5px 4px;border:1px solid #bbb;text-align:right;font-weight:700;">${subtotal.toFixed(2)}</td>
-            </tr>
-            ${discountRows}
-            ${slotRow}
-            ${deliveryRow}
-          </tbody>
-        </table>
-
-        <div style="border-top:1px dashed #999;margin:8px 0;"></div>
-
-        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;margin:4px 0;">
-          <span>Grand Total:</span><span>${grandTotal.toFixed(2)}</span>
-        </div>
-        ${walletRow}
-        ${paidDueRow}
-
-        <div style="text-align:center;font-size:15px;color:#555;line-height:1.8;margin-top:14px;">
-          Thank you for your business!<br/>
-          For any query - 9220200100
-        </div>
-      </div>
-    </body></html>`;
+    const combinedHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${invoiceNo}</title><style>* { margin:0;padding:0;box-sizing:border-box; } body { font-family:Arial,sans-serif;color:#111;background:#fff; } @page { size:80mm auto;margin:0; } .pg { page-break-after:always; } .pg:last-child { page-break-after:avoid; }</style></head><body><div class="pg">${customerBody}</div><div class="pg">${kotBody}</div></body></html>`;
 
     toast({ title: "Printing..." });
-    const qzResult = await printHtmlWithQZ(htmlContent);
+    const qzResult = await printHtmlWithQZ(combinedHtml);
     if (qzResult.success) return;
 
-    // QZ Tray unavailable — fall back to browser print dialog
     toast({ title: "Print failed, opening dialog...", variant: "destructive" });
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(htmlContent);
+    win.document.write(combinedHtml);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); win.close(); }, 400);
@@ -465,10 +390,14 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-          <h2 className="text-base font-semibold text-gray-800">Voucher Preview</h2>
+          <div className="flex gap-1">
+            <button onClick={() => setActiveTab("customer")} className={`px-3 py-1 text-sm font-medium rounded transition-colors ${activeTab === "customer" ? "bg-[#1A56DB] text-white" : "text-gray-500 hover:bg-gray-100"}`}>Customer Invoice</button>
+            <button onClick={() => setActiveTab("kot")} className={`px-3 py-1 text-sm font-medium rounded transition-colors ${activeTab === "kot" ? "bg-[#1A56DB] text-white" : "text-gray-500 hover:bg-gray-100"}`}>KOT</button>
+          </div>
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto p-5 bg-gray-50">
+          {activeTab === "customer" && (
           <div id="invoice-print-area" className="bg-white max-w-md mx-auto p-5 text-[16px] text-gray-800 shadow-sm border border-gray-200 rounded">
             <div style={{ textAlign: "center", marginBottom: 4 }}>
               <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "0.01em" }}>FISHTOKRI (ATHA FOODS Pvt Ltd)</div>
@@ -598,6 +527,59 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
               For any query - 9220200100
             </div>
           </div>
+          )}
+          {activeTab === "kot" && (
+            <div className="bg-white max-w-md mx-auto p-5 text-[16px] text-gray-800 shadow-sm border border-gray-200 rounded">
+              <div style={{ textAlign: "center", marginBottom: 4 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "0.01em" }}>FISHTOKRI (ATHA FOODS Pvt Ltd)</div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, fontSize: 11, lineHeight: 1.5 }}>
+                  <div style={{ textAlign: "left", maxWidth: "55%" }}>
+                    <div><b>ADD :</b> Shop no.2, wing R7/214, khartan road, Thane west - 400601</div>
+                    <div><b>Mob No :</b> 9220200100</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div><b>GST No :</b> 27AAOCA7628P1ZT</div>
+                    <div><b>FSSAI No :</b> 21521066000481</div>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-dashed border-gray-400 my-2" />
+              <div className="text-center font-bold text-[16px] tracking-widest mb-1">— KOT —</div>
+              <div className="text-[15px]"><b>Invoice :</b> {invoiceNo}</div>
+              <div className="text-[15px]"><b>Name :</b> {order.customerName}</div>
+              <div className="text-[15px]"><b>Mobile :</b> {order.phone || "—"}</div>
+              {order.address && <div className="text-[15px]"><b>Address :</b> {order.address}</div>}
+              <div className="border-t border-dashed border-gray-400 my-2" />
+              <div className="text-[15px]"><b>Order Date :</b> {orderDateStr} , {timeStr}</div>
+              <div className="text-[15px]"><b>Delivery Date :</b> {deliveryDateStr}</div>
+              {(order.isExpress || formatTimeSlot(order)) && <div className="text-[15px]"><b>Delivery Slot :</b> {order.isExpress ? "Express order by Porter" : formatTimeSlot(order)}</div>}
+              {order.notes && <div className="text-[15px]"><b>Notes : {order.notes}</b></div>}
+              <div className="border-t border-dashed border-gray-400 my-2" />
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: "5px 4px", border: "1px solid #bbb", textAlign: "left", fontWeight: 700, background: "#f5f5f5" }}>Item</th>
+                    <th style={{ padding: "5px 4px", border: "1px solid #bbb", textAlign: "right", fontWeight: 700, background: "#f5f5f5", whiteSpace: "nowrap" }}>Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it: any, i: number) => {
+                    const qty = Number(it.quantity) || 1;
+                    return (
+                      <tr key={i}>
+                        <td style={{ padding: "5px 4px", border: "1px solid #bbb", fontWeight: 600, wordBreak: "break-word" }}>{it.name}</td>
+                        <td style={{ padding: "5px 4px", border: "1px solid #bbb", textAlign: "right" }}>{qty}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td style={{ padding: "5px 4px", border: "1px solid #bbb", fontWeight: 700 }}>Total Items: {items.length}</td>
+                    <td style={{ padding: "5px 4px", border: "1px solid #bbb", textAlign: "right", fontWeight: 700 }}>{totalQty}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-200 bg-white">
