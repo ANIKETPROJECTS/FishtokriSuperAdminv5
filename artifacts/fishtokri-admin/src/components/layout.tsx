@@ -28,6 +28,7 @@ const masterAdminNavItems = [
       { href: "/inventory/products", label: "Inventory", icon: Package },
       { href: "/inventory/history", label: "History", icon: History },
       { href: "/inventory/adjustment", label: "Stock Management", icon: SlidersHorizontal },
+      { href: "/inventory/wastage", label: "Wastage Report", icon: Trash2 },
     ],
   },
   {
@@ -44,7 +45,6 @@ const masterAdminNavItems = [
   { href: "/customers", label: "Customers", icon: ShoppingBasket },
   { href: "/delivery-report", label: "Delivery Report", icon: FileBarChart },
   { href: "/day-end-report", label: "Day End Report", icon: FileSpreadsheet },
-  { href: "/wastage-report", label: "Wastage Report", icon: Trash2 },
 ];
 
 function getAdminData() {
@@ -248,7 +248,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     "/customers",
     "/delivery-report",
     "/day-end-report",
-    "/wastage-report",
   ]);
   const subHubAllowedHrefs = new Set([
     "/dashboard",
@@ -257,7 +256,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     "/customers",
     "/delivery-report",
     "/day-end-report",
-    "/wastage-report",
   ]);
 
   const filterNavByHrefs = (items: any[], allowed: Set<string>) =>

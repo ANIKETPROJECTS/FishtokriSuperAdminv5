@@ -274,8 +274,8 @@ function App() {
               <ProtectedRoute component={DayEndReport} allowedRoles={ALL_ADMIN_ROLES} />
             </Route>
 
-            {/* Wastage Report — all admin roles */}
-            <Route path="/wastage-report">
+            {/* Wastage Report — all admin roles (under inventory) */}
+            <Route path="/inventory/wastage">
               <ProtectedRoute component={WastageReport} allowedRoles={ALL_ADMIN_ROLES} />
             </Route>
 
