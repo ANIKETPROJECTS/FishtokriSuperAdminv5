@@ -132,7 +132,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
   const payStatusColor = payStatusNorm==="paid" ? "#15803d" : payStatusNorm==="partial" ? "#b45309" : "#b91c1c";
   const payStatusBg = payStatusNorm==="paid" ? "#f0fdf4" : payStatusNorm==="partial" ? "#fffbeb" : "#fef2f2";
 
-  const [activeTab, setActiveTab] = React.useState<"customer" | "kot">("customer");
+  const [activeTab, setActiveTab] = useState<"customer" | "kot">("customer");
 
   const handlePrint = async () => {
     const itemRows = items.map((it:any) => {

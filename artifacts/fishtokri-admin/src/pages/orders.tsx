@@ -337,7 +337,7 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
     order.paymentStatus === "paid" ? "Paid" :
     order.paymentStatus === "partial" ? "Partial" : "Unpaid";
 
-  const [activeTab, setActiveTab] = React.useState<"customer" | "kot">("customer");
+  const [activeTab, setActiveTab] = useState<"customer" | "kot">("customer");
 
   const handlePrint = async () => {
     const itemRows = items.map((it: any) => {
