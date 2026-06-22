@@ -37,6 +37,7 @@ import BankingPayments from "@/pages/banking-payments";
 import DeliveryReport from "@/pages/delivery-report";
 import DeliveryReportPerson from "@/pages/delivery-report-person";
 import DayEndReport from "@/pages/day-end-report";
+import WastageReport from "@/pages/wastage-report";
 import { Layout } from "@/components/layout";
 
 const queryClient = new QueryClient({
@@ -271,6 +272,11 @@ function App() {
             {/* Day End Report — all admin roles */}
             <Route path="/day-end-report">
               <ProtectedRoute component={DayEndReport} allowedRoles={ALL_ADMIN_ROLES} />
+            </Route>
+
+            {/* Wastage Report — all admin roles */}
+            <Route path="/wastage-report">
+              <ProtectedRoute component={WastageReport} allowedRoles={ALL_ADMIN_ROLES} />
             </Route>
 
             {/* Delivery Report — all roles */}

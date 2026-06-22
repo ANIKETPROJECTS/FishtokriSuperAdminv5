@@ -230,4 +230,146 @@ router.get("/day-end/inventory", async (req: ScopedRequest, res) => {
   }
 });
 
+// ─── WASTAGE REPORT ─────────────────────────────────────────────────────────
+// GET /api/reports/wastage?subHubId=xxx&from=YYYY-MM-DD&to=YYYY-MM-DD
+router.get("/wastage", async (req: ScopedRequest, res) => {
+  try {
+    const subHubId = String(req.query.subHubId || "");
+    if (!subHubId) {
+      res.status(400).json({ error: "ValidationError", message: "subHubId is required" });
+      return;
+    }
+
+    const scope = req.scope;
+    if (scope && !scope.isMaster && !scope.subHubIds.includes(subHubId)) {
+      res.status(403).json({ error: "Forbidden", message: "You do not have access to this sub hub" });
+      return;
+    }
+
+    const sub = await SubHub.findById(subHubId).lean();
+    if (!sub) { res.status(404).json({ error: "NotFound", message: "Sub hub not found" }); return; }
+    if (!sub.dbName) { res.status(400).json({ error: "NoDB", message: "Sub hub has no database linked" }); return; }
+
+    const conn = await getSubHubDbConnection(sub.dbName);
+
+    const from = String(req.query.from || "");
+    const to = String(req.query.to || "");
+
+    const fromDate = from ? new Date(from + "T00:00:00") : null;
+    const toDate = to ? new Date(to + "T23:59:59") : null;
+
+    // ── 1. Manually reduced stock: inventory_movements where type=adjustment & change<0 ──
+    const movFilter: any = { type: "adjustment", change: { $lt: 0 } };
+    if (fromDate || toDate) {
+      const clause: any = {};
+      if (fromDate) clause.$gte = fromDate;
+      if (toDate) clause.$lte = toDate;
+      movFilter.createdAt = clause;
+    }
+
+    const movements = await conn.db.collection("inventory_movements")
+      .find(movFilter)
+      .sort({ createdAt: -1 })
+      .limit(2000)
+      .toArray();
+
+    // Look up prices for products referenced in movements
+    const movProductIdStrs = [...new Set(movements.map((m: any) => String(m.productId)).filter(Boolean))];
+    const priceMap = new Map<string, number>();
+    if (movProductIdStrs.length > 0) {
+      const prods = await conn.db.collection("products")
+        .find({
+          _id: {
+            $in: movProductIdStrs.map((id) => {
+              try { return new mongoose.mongo.ObjectId(id); } catch { return null; }
+            }).filter(Boolean),
+          },
+        })
+        .project({ _id: 1, price: 1 })
+        .toArray();
+      for (const p of prods) priceMap.set(String(p._id), Number(p.price) || 0);
+    }
+
+    const reducedItems = movements.map((m: any) => {
+      const qty = Math.abs(Number(m.change) || 0);
+      const price = priceMap.get(String(m.productId)) || 0;
+      return {
+        id: String(m._id),
+        batchId: m.batchNumber || String(m._id),
+        dateAdded: null,
+        expiryDate: m.expiryDate ? new Date(m.expiryDate).toISOString().slice(0, 10) : null,
+        item: m.productName || "—",
+        type: "reduced",
+        quantity: qty,
+        unit: m.unit || "",
+        totalPrice: parseFloat((qty * price).toFixed(2)),
+        operationDate: m.createdAt ? new Date(m.createdAt).toISOString() : null,
+        reason: m.reason || "",
+        notes: m.notes || "",
+      };
+    });
+
+    // ── 2. Expired batches: find products with batches whose expiryDate has passed ──
+    const now = new Date();
+    const expBatchFilter: any = {
+      "batches.expiryDate": { $lt: now },
+    };
+    // If date range given, filter expired batches by their expiryDate falling in range
+    if (fromDate || toDate) {
+      const clause: any = { $lt: now };
+      if (fromDate) clause.$gte = fromDate;
+      if (toDate) clause.$lte = toDate;
+      expBatchFilter["batches.expiryDate"] = clause;
+    }
+
+    const expiredProducts = await conn.db.collection("products")
+      .find(expBatchFilter)
+      .toArray();
+
+    const expiredItems: any[] = [];
+    for (const p of expiredProducts) {
+      const batches: any[] = Array.isArray(p.batches) ? p.batches : [];
+      for (const b of batches) {
+        if (!b.expiryDate) continue;
+        const expiry = new Date(b.expiryDate);
+        if (expiry >= now) continue;
+        if (fromDate && expiry < fromDate) continue;
+        if (toDate && expiry > toDate) continue;
+        const qty = Number(b.quantity) || 0;
+        const price = Number(p.price) || 0;
+        expiredItems.push({
+          id: String(b._id || b.batchNumber || ""),
+          batchId: b.batchNumber || String(b._id || ""),
+          dateAdded: b.receivedDate ? new Date(b.receivedDate).toISOString().slice(0, 10) : null,
+          expiryDate: expiry.toISOString().slice(0, 10),
+          item: p.name || "—",
+          type: "expired",
+          quantity: qty,
+          unit: p.unit || "",
+          totalPrice: parseFloat((qty * price).toFixed(2)),
+          operationDate: expiry.toISOString(),
+          reason: "",
+          notes: b.notes || "",
+        });
+      }
+    }
+
+    // Combine and sort by operationDate descending
+    const all = [...reducedItems, ...expiredItems].sort((a, b) => {
+      const da = a.operationDate ? new Date(a.operationDate).getTime() : 0;
+      const db2 = b.operationDate ? new Date(b.operationDate).getTime() : 0;
+      return db2 - da;
+    });
+
+    res.json({
+      records: all,
+      total: all.length,
+      subHub: { id: String(sub._id), name: sub.name },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch wastage report");
+    res.status(500).json({ error: "InternalError", message: "Failed to fetch wastage report" });
+  }
+});
+
 export default router;
