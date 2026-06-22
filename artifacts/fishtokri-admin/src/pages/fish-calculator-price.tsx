@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { FishCalculatorTabs } from "@/components/fish-calculator-tabs";
 
 type Config = {
   market_handling_cost: number;
@@ -178,6 +179,7 @@ export default function FishCalculatorPricePage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <FishCalculatorTabs />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Price Calculator</h1>
         <p className="text-sm text-gray-500 mt-1">Enter buy price in ₹/kg. Wastage and Margin are percentages and can be 0.</p>

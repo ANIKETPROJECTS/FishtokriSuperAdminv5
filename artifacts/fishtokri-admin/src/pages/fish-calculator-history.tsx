@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { FishCalculatorTabs } from "@/components/fish-calculator-tabs";
 
 type RecordItem = {
   id: string;
@@ -192,6 +193,7 @@ export default function FishCalculatorHistoryPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <FishCalculatorTabs />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">History</h1>

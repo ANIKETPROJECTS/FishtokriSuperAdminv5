@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { FishCalculatorTabs } from "@/components/fish-calculator-tabs";
 
 type CalculateResult = {
   buy_price_per_gram: number;
@@ -186,6 +187,7 @@ export default function FishCalculatorYieldPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <FishCalculatorTabs />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Yield & Price Calculator</h1>
         <p className="text-sm text-gray-500 mt-1">Enter purchase and final output (kg) — wastage % is auto-computed, then pricing is calculated.</p>

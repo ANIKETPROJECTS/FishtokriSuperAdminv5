@@ -46,98 +46,6 @@ const masterAdminNavItems = [
   { href: "/day-end-report", label: "Day End Report", icon: FileSpreadsheet },
 ];
 
-function QuickNavBar({ navItems, location, isDelivery }: { navItems: any[]; location: string; isDelivery: boolean }) {
-  const [openHref, setOpenHref] = useState<string | null>(null);
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  if (isDelivery) return null;
-
-  function enter(href: string) {
-    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-    setOpenHref(href);
-  }
-
-  function leave() {
-    leaveTimerRef.current = setTimeout(() => setOpenHref(null), 150);
-  }
-
-  function cancelLeave() {
-    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-  }
-
-  return (
-    <div className="hidden md:flex sticky top-14 z-10 bg-white border-b border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
-      <div className="flex items-center gap-0.5 px-4 overflow-x-auto scrollbar-none">
-        {navItems.map((item: any) => {
-          const { href, label, icon: Icon, children } = item;
-          const isActive =
-            location === href ||
-            (href !== "/dashboard" && location.startsWith(href)) ||
-            (children && children.some((c: any) => location === c.href || location.startsWith(c.href)));
-
-          const isOpen = openHref === href;
-
-          return (
-            <div
-              key={href}
-              className="relative flex-shrink-0"
-              onMouseEnter={() => children?.length ? enter(href) : setOpenHref(null)}
-              onMouseLeave={leave}
-            >
-              <Link href={children?.length ? children[0].href : href}>
-                <div
-                  className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium cursor-pointer whitespace-nowrap border-b-2 transition-all ${
-                    isActive
-                      ? "border-[#F05B4E] text-[#F05B4E]"
-                      : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span>{label}</span>
-                  {children?.length > 0 && (
-                    <ChevronDown className={`w-3 h-3 flex-shrink-0 opacity-60 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
-                  )}
-                </div>
-              </Link>
-
-              {children?.length > 0 && isOpen && (
-                <div
-                  ref={dropdownRef}
-                  onMouseEnter={cancelLeave}
-                  onMouseLeave={leave}
-                  className="absolute top-full left-0 mt-0.5 min-w-[200px] bg-white rounded-xl border border-gray-100 shadow-xl py-1.5 z-50"
-                >
-                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100 mb-1">{label}</p>
-                  {children.map((child: any) => {
-                    const ChildIcon = child.icon;
-                    const isChildActive = location === child.href || location.startsWith(child.href);
-                    return (
-                      <Link key={child.href} href={child.href}>
-                        <div
-                          onClick={() => setOpenHref(null)}
-                          className={`flex items-center gap-2.5 px-3 py-2 mx-1 rounded-lg text-sm cursor-pointer transition-colors ${
-                            isChildActive
-                              ? "bg-[#F05B4E]/10 text-[#F05B4E] font-medium"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                        >
-                          <ChildIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>{child.label}</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function getAdminData() {
   try {
     const raw = localStorage.getItem("fishtokri_admin");
@@ -646,8 +554,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           <div id="page-header-slot" className="flex items-center gap-3 flex-1 min-w-0" />
         </header>
-
-        <QuickNavBar navItems={navItems} location={location} isDelivery={isDelivery} />
 
         <div className={`flex-1 min-w-0 bg-white ${location.startsWith("/day-end-report") ? "p-0" : location.startsWith("/orders") ? "px-4 py-3" : location.startsWith("/my-deliveries") || location.startsWith("/delivery-report") ? "p-4" : "p-4 sm:p-6 lg:p-8"}`}>
           {children}

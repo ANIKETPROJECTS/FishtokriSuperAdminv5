@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { FishCalculatorTabs } from "@/components/fish-calculator-tabs";
 
 type Config = {
   market_handling_cost: number;
@@ -98,6 +99,7 @@ export default function FishCalculatorConfigPage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
+      <FishCalculatorTabs />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configuration</h1>
         <p className="text-sm text-gray-500 mt-1">All cost values are stored as <strong>₹ per gram (₹/g)</strong>. These are added to the effective price before applying margin.</p>
