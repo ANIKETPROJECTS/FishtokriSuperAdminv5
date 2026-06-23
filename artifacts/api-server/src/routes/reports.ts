@@ -273,9 +273,11 @@ router.get("/wastage", async (req: ScopedRequest, res) => {
       .limit(2000)
       .toArray();
 
-    // Look up prices for products referenced in movements
+    // Look up prices + batches for products referenced in movements
     const movProductIdStrs = [...new Set(movements.map((m: any) => String(m.productId)).filter(Boolean))];
     const priceMap = new Map<string, number>();
+    // batchMap: productId -> Map<batchNumber, batch>
+    const batchMap = new Map<string, Map<string, any>>();
     if (movProductIdStrs.length > 0) {
       const prods = await conn.db.collection("products")
         .find({
@@ -285,19 +287,38 @@ router.get("/wastage", async (req: ScopedRequest, res) => {
             }).filter(Boolean),
           },
         })
-        .project({ _id: 1, price: 1 })
+        .project({ _id: 1, price: 1, batches: 1 })
         .toArray();
-      for (const p of prods) priceMap.set(String(p._id), Number(p.price) || 0);
+      for (const p of prods) {
+        const pid = String(p._id);
+        priceMap.set(pid, Number(p.price) || 0);
+        const bMap = new Map<string, any>();
+        if (Array.isArray(p.batches)) {
+          for (const b of p.batches) {
+            if (b.batchNumber) bMap.set(String(b.batchNumber), b);
+          }
+        }
+        batchMap.set(pid, bMap);
+      }
     }
 
     const reducedItems = movements.map((m: any) => {
       const qty = Math.abs(Number(m.change) || 0);
-      const price = priceMap.get(String(m.productId)) || 0;
+      const pid = String(m.productId);
+      const price = priceMap.get(pid) || 0;
+      // Look up the batch to get receivedDate and expiryDate
+      const matchedBatch = m.batchNumber ? batchMap.get(pid)?.get(String(m.batchNumber)) : undefined;
+      const dateAdded = matchedBatch?.receivedDate
+        ? new Date(matchedBatch.receivedDate).toISOString().slice(0, 10)
+        : null;
+      const expiryDate = matchedBatch?.expiryDate
+        ? new Date(matchedBatch.expiryDate).toISOString().slice(0, 10)
+        : (m.expiryDate ? new Date(m.expiryDate).toISOString().slice(0, 10) : null);
       return {
         id: String(m._id),
-        batchId: m.batchNumber || String(m._id),
-        dateAdded: null,
-        expiryDate: m.expiryDate ? new Date(m.expiryDate).toISOString().slice(0, 10) : null,
+        batchId: m.batchNumber || (m.batchNumbers ? String(m.batchNumbers) : null) || null,
+        dateAdded,
+        expiryDate,
         item: m.productName || "—",
         type: "reduced",
         quantity: qty,
