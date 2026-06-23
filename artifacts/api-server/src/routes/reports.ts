@@ -326,7 +326,18 @@ router.get("/wastage", async (req: ScopedRequest, res) => {
         : matchedBatch?.expiryDate
           ? new Date(matchedBatch.expiryDate).toISOString().slice(0, 10)
           : null;
-      const batchId = m.batchNumber || null;
+      // Build batchId: named batch number > matched batch number > short _id fallback
+      const namedBatch = (m.batchNumber && m.batchNumber !== "")
+        ? m.batchNumber
+        : (matchedBatch?.batchNumber && matchedBatch.batchNumber !== "")
+          ? matchedBatch.batchNumber
+          : null;
+      const fallbackId = m.batchObjectId
+        ? `#${String(m.batchObjectId).slice(-8)}`
+        : matchedBatch?._id
+          ? `#${String(matchedBatch._id).slice(-8)}`
+          : null;
+      const batchId = namedBatch || fallbackId || null;
       return {
         id: String(m._id),
         batchId,

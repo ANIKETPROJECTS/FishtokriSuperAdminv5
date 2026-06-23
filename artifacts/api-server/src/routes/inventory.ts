@@ -693,6 +693,7 @@ router.post("/adjustments", async (req, res) => {
         reason: String(reason).trim(),
         notes: notes ? String(notes).trim() : "",
         batchNumber: appliedBatch?.batchNumber || undefined,
+        batchObjectId: appliedBatch?._id ? String(appliedBatch._id) : undefined,
         expiryDate: appliedBatch?.expiryDate || undefined,
         receivedDate: appliedBatch?.receivedDate || undefined,
         createdAt: now,
