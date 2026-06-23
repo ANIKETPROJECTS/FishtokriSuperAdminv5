@@ -622,11 +622,15 @@ router.post("/adjustments", async (req, res) => {
             const consumed = consumeBatches(currentBatches, rmQty);
             newBatches = consumed.batches;
             delta = -(rmQty - consumed.remaining);
+            // Capture first FIFO batch for movement tracking
+            if (!appliedBatch && currentBatches.length > 0) appliedBatch = currentBatches[0];
           }
         } else {
           const consumed = consumeBatches(currentBatches, rmQty);
           newBatches = consumed.batches;
           delta = -(rmQty - consumed.remaining);
+          // Capture first FIFO batch for movement tracking
+          if (!appliedBatch && currentBatches.length > 0) appliedBatch = currentBatches[0];
         }
         if (delta === 0) continue;
       } else {
@@ -690,6 +694,7 @@ router.post("/adjustments", async (req, res) => {
         notes: notes ? String(notes).trim() : "",
         batchNumber: appliedBatch?.batchNumber || undefined,
         expiryDate: appliedBatch?.expiryDate || undefined,
+        receivedDate: appliedBatch?.receivedDate || undefined,
         createdAt: now,
       });
     }
