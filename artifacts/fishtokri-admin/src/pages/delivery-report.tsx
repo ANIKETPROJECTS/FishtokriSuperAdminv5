@@ -126,6 +126,7 @@ export function DateFilterBar({
 
 function SummaryStrip({ summary, personCount }: { summary: any; personCount: number }) {
   const modes = Object.entries(summary.byMode || {}) as [string, { count: number; amount: number }][];
+  const walletExtra: number = summary.walletExtra || 0;
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -140,7 +141,16 @@ function SummaryStrip({ summary, personCount }: { summary: any; personCount: num
           <p className="text-xs text-red-500 mt-0.5">Due: {formatRupees(summary.dueAmount)}</p>
         )}
       </div>
-      {modes.slice(0, 3).map(([mode, data]) => {
+      {walletExtra > 0 && (
+        <div className="bg-blue-50 rounded-xl border border-blue-200 shadow-sm p-4">
+          <p className="text-xs font-semibold text-blue-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+            <Wallet className="w-3.5 h-3.5" /> Wallet Extra Collected
+          </p>
+          <p className="text-2xl font-bold text-blue-600">{formatRupees(walletExtra)}</p>
+          <p className="text-xs text-blue-400 mt-0.5">Excess credited to wallets</p>
+        </div>
+      )}
+      {modes.slice(0, walletExtra > 0 ? 2 : 3).map(([mode, data]) => {
         const m = modeMeta(mode);
         return (
           <div key={mode} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -212,6 +222,14 @@ function PersonCard({ person, userProfile, onView }: { person: any; userProfile?
           {modes.map(([mode, data]) => (
             <ModeTag key={mode} mode={mode} amount={data.amount} />
           ))}
+        </div>
+      )}
+
+      {/* Wallet extra collected */}
+      {(person.walletExtra || 0) > 0 && (
+        <div className="mx-4 mb-2 flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
+          <Wallet className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+          <p className="text-xs text-blue-600 font-medium">Wallet Extra: {formatRupees(person.walletExtra)}</p>
         </div>
       )}
 

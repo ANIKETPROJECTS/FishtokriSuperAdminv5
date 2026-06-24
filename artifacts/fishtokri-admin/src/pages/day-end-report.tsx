@@ -345,10 +345,10 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   }, [orders, ordSearch, ordPayFilter, ordStatusFilter, ordSort]);
 
   const stats = useMemo(() => {
-    let cash = 0, upi = 0, wallet = 0, other = 0, unpaid = 0;
+    let cash = 0, upi = 0, card = 0, wallet = 0, other = 0, unpaid = 0, totalRev = 0;
     for (const o of orders) {
       if (String(o.orderStatus || o.status || "").toLowerCase() === "cancelled") continue;
-      const total = o.total || 0;
+      const total = Number(o.total) || 0;
 
       const statusLower = String(o.paymentStatus || "").toLowerCase();
       const isUnpaid = statusLower === "unpaid";
@@ -368,36 +368,48 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
       // For fully unpaid orders there's nothing actually collected — skip revenue split
       if (isUnpaid) continue;
 
+      // Grand Total = sum of order totals (what was invoiced to customers)
+      totalRev += total;
+
       const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
       if (pays.length > 0) {
-        // Use per-payment-entry amounts (most accurate)
-        let nonWalletPaid = 0;
-        for (const p of pays) {
-          const mode = String(p?.mode || "").toLowerCase();
-          const amt = Number(p?.amount) || 0;
-          if (mode === "cash" || mode === "cod") { cash += amt; nonWalletPaid += amt; }
-          else if (mode === "upi") { upi += amt; nonWalletPaid += amt; }
-          else if (mode === "wallet") wallet += amt;
-          else { other += amt; nonWalletPaid += amt; }
-        }
-        // Excess collected beyond order total → credited to customer wallet
-        const excessToWallet = Math.max(0, nonWalletPaid - (Number(o.total) || 0));
+        const nonWalletPays = pays.filter((p: any) => String(p?.mode || "").toLowerCase() !== "wallet");
+        const nonWalletPaid = nonWalletPays.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+
+        // Extra physically collected beyond order total → credited to customer wallet
+        // This is the only amount that counts as "wallet collected"
+        const excessToWallet = Math.max(0, nonWalletPaid - total);
         wallet += excessToWallet;
+
+        if (nonWalletPays.length > 0) {
+          // Attribute the full ORDER TOTAL to the primary non-wallet payment channel.
+          // (For wallet+cash orders, the full invoice value is still a "cash order" —
+          //  the wallet discount is internal; the delivery channel is cash.)
+          const primaryMode = String(nonWalletPays[0]?.mode || "").toLowerCase();
+          if (primaryMode === "cash" || primaryMode === "cod") cash += total;
+          else if (primaryMode === "upi") upi += total;
+          else if (primaryMode === "card") card += total;
+          else other += total;
+        }
+        // If ALL payments are wallet-mode: fully covered by wallet credit, no physical collection
       } else {
-        // Fallback: split by paymentMode string for partial/paid orders
+        // Fallback: use paymentMode string
         const paidAmt = isPartial
-          ? (o.paidAmount != null ? Number(o.paidAmount) : Math.max(0, total - unpaid))
+          ? (o.paidAmount != null ? Number(o.paidAmount) : total)
           : total;
-        const mode = String(o.paymentMode || "").toLowerCase();
-        if (mode === "cash" || mode === "cod") cash += paidAmt;
-        else if (mode === "upi") upi += paidAmt;
-        else if (mode === "wallet") wallet += paidAmt;
+        // Strip "Wallet, " prefix or suffix for mixed-mode strings
+        const modeStr = String(o.paymentMode || "").toLowerCase()
+          .replace(/wallet\s*,\s*/gi, "")
+          .replace(/,\s*wallet/gi, "")
+          .trim();
+        if (modeStr === "cash" || modeStr === "cod") cash += paidAmt;
+        else if (modeStr === "upi" || modeStr.includes("gpay") || modeStr.includes("paytm") || modeStr.includes("phonepe") || modeStr.startsWith("gpay") || (modeStr.length > 0 && !modeStr.includes("cash") && !modeStr.includes("card") && modeStr !== "wallet")) upi += paidAmt;
+        else if (modeStr === "card") card += paidAmt;
+        else if (modeStr === "wallet" || modeStr === "") { /* wallet-only: no physical collection */ }
         else other += paidAmt;
       }
     }
-    // Total Revenue = actual collected amounts (cash + upi + other non-wallet modes)
-    const totalRev = cash + upi + other;
-    return { cash, upi, wallet, totalRev, unpaid };
+    return { cash, upi, card, wallet, totalRev, unpaid };
   }, [orders]);
 
   const handleDownload = useCallback(() => {
@@ -414,8 +426,9 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
     rows.push(["Total Orders", orders.length]);
     rows.push(["Cash Revenue", stats.cash]);
     rows.push(["UPI Revenue", stats.upi]);
+    rows.push(["Card Revenue", stats.card]);
     rows.push(["Total Revenue", stats.totalRev]);
-    rows.push(["Wallet Collected", stats.wallet]);
+    rows.push(["Wallet Collected (Extra)", stats.wallet]);
     rows.push(["Unpaid Dues", stats.unpaid]);
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = [{wch:20},{wch:22},{wch:14},{wch:48},{wch:14},{wch:22},{wch:14},{wch:16},{wch:16}];
@@ -431,16 +444,17 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
       {/* Stats strip */}
       <div style={{ display: "flex", gap: 0, background: "#fff", borderRadius: 14, border: "1px solid #ebebeb", marginBottom: 20, overflow: "hidden" }}>
         {[
-          { label: "Total Orders", value: String(orders.length) },
-          { label: "Cash Revenue", value: formatRupees(stats.cash) },
-          { label: "UPI Revenue", value: formatRupees(stats.upi) },
-          { label: "Total Revenue", value: formatRupees(stats.totalRev) },
-          { label: "Wallet Collected", value: formatRupees(stats.wallet) },
-          { label: "Unpaid Dues", value: formatRupees(stats.unpaid) },
+          { label: "Total Orders", value: String(orders.length), color: "#000" },
+          { label: "Cash Payment", value: formatRupees(stats.cash), color: "#16a34a" },
+          { label: "UPI Payment", value: formatRupees(stats.upi), color: "#7c3aed" },
+          { label: "Card Payment", value: formatRupees(stats.card), color: "#ea580c" },
+          { label: "Grand Total", value: formatRupees(stats.totalRev), color: "#000" },
+          { label: "Wallet Collected", value: formatRupees(stats.wallet), color: "#2563eb" },
+          { label: "Unpaid Dues", value: formatRupees(stats.unpaid), color: "#dc2626" },
         ].map((s, i, arr) => (
-          <div key={s.label} style={{ flex: 1, padding: "16px 18px", borderRight: i < arr.length - 1 ? "1px solid #ebebeb" : "none" }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>{s.label}</p>
-            <p style={{ fontSize: 20, fontWeight: 700, color: i === 5 ? "#dc2626" : "#000", lineHeight: 1.1 }}>{s.value}</p>
+          <div key={s.label} style={{ flex: 1, padding: "16px 14px", borderRight: i < arr.length - 1 ? "1px solid #ebebeb" : "none" }}>
+            <p style={{ fontSize: 9, fontWeight: 600, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>{s.label}</p>
+            <p style={{ fontSize: 17, fontWeight: 700, color: s.color, lineHeight: 1.1 }}>{s.value}</p>
           </div>
         ))}
       </div>

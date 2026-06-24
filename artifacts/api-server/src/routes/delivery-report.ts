@@ -14,20 +14,16 @@ async function getOrdersDb() {
 function buildDateFilter(from: string, to: string): Record<string, any> {
   if (!from && !to) return {};
   const dateFilter: any = {};
-  if (from) dateFilter.$gte = new Date(from);
-  if (to) {
-    const toDate = new Date(to);
-    toDate.setHours(23, 59, 59, 999);
-    dateFilter.$lte = toDate;
-  }
-  return { createdAt: dateFilter };
+  if (from) dateFilter.$gte = from;
+  if (to) dateFilter.$lte = to;
+  return { deliveryDate: dateFilter };
 }
 
 const ORDER_PROJECTION = {
   _id: 1, orderId: 1, orderNumber: 1, customerName: 1, phone: 1, total: 1,
   paidAmount: 1, dueAmount: 1, payments: 1, paymentStatus: 1, status: 1,
   deliveryType: 1, assignedDeliveryPersonId: 1, assignedDeliveryPersonName: 1,
-  createdAt: 1, subHubName: 1, deliveryArea: 1, items: 1, isExpress: 1,
+  createdAt: 1, deliveryDate: 1, subHubName: 1, deliveryArea: 1, items: 1, isExpress: 1,
 };
 
 interface ModeData { count: number; amount: number; }
@@ -53,6 +49,7 @@ function processOrders(orders: any[]) {
         orderCount: 0,
         totalRevenue: 0,
         dueAmount: 0,
+        walletExtra: 0,
         byMode: {} as Record<string, ModeData>,
         orders: [] as any[],
       });
@@ -63,18 +60,24 @@ function processOrders(orders: any[]) {
     person.dueAmount += Number(order.dueAmount) || 0;
 
     const payments: any[] = Array.isArray(order.payments) ? order.payments : [];
+    let nonWalletCollected = 0;
     for (const p of payments) {
       const mode = (p.mode || "other").toLowerCase();
       const amount = Number(p.amount) || 0;
-      // Wallet payments are pre-deducted from the customer's account at order
-      // creation time — the delivery person never physically collects this amount.
-      // Exclude wallet from the delivery report's collected totals and mode breakdown.
+      // Wallet payments = wallet balance used by customer (not physically collected).
+      // Exclude from the delivery report's collected totals and mode breakdown.
       if (mode === "wallet") continue;
       if (!person.byMode[mode]) person.byMode[mode] = { count: 0, amount: 0 };
       (person.byMode[mode] as ModeData).count++;
       (person.byMode[mode] as ModeData).amount += amount;
       person.totalRevenue += amount;
+      nonWalletCollected += amount;
     }
+
+    // Extra physically collected beyond order total → credited to customer wallet
+    const orderTotal = Number(order.total) || 0;
+    const excess = Math.max(0, nonWalletCollected - orderTotal);
+    person.walletExtra += excess;
 
     person.orders.push({
       id: String(order._id),
@@ -152,10 +155,12 @@ router.get("/", async (req: ScopedRequest, res) => {
     const globalByMode: Record<string, ModeData> = {};
     let totalRevenue = 0;
     let totalDue = 0;
+    let totalWalletExtra = 0;
 
     for (const p of byPersonArr) {
       totalRevenue += p.totalRevenue;
       totalDue += p.dueAmount;
+      totalWalletExtra += p.walletExtra || 0;
       for (const [mode, data] of Object.entries(p.byMode) as [string, ModeData][]) {
         if (!globalByMode[mode]) globalByMode[mode] = { count: 0, amount: 0 };
         globalByMode[mode].count += data.count;
@@ -164,7 +169,7 @@ router.get("/", async (req: ScopedRequest, res) => {
     }
 
     res.json({
-      summary: { totalOrders: orders.length, totalRevenue, dueAmount: totalDue, byMode: globalByMode },
+      summary: { totalOrders: orders.length, totalRevenue, dueAmount: totalDue, walletExtra: totalWalletExtra, byMode: globalByMode },
       byPerson: byPersonArr,
     });
   } catch (err) {
