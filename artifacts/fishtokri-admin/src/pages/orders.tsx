@@ -40,7 +40,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { useOrderAlert } from "@/hooks/use-order-alert";
+import { useOrderAlert, playOrderAlertOnce } from "@/hooks/use-order-alert";
 import { printHtmlWithQZ } from "@/lib/qz-print";
 import { useLocation } from "wouter";
 import { getCurrentAdminScope } from "@/lib/api";
@@ -1835,6 +1835,9 @@ export default function Orders() {
       }
 
       toast({ title: editingOrderId ? "Order updated" : "Order created", description: `${customerName} · ${formatRupees(cleanItems.reduce((s, i) => s + i.price * i.quantity, 0))}` });
+      // Play the order alert bell for manually created orders (POS),
+      // the same way it fires for orders arriving via polling.
+      if (!editingOrderId) playOrderAlertOnce();
       resetCreateForm();
       setLocation("/orders");
       load();

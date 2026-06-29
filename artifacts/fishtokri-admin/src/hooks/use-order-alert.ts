@@ -1,6 +1,18 @@
 import { useEffect, useRef } from "react";
 
 /**
+ * One-shot helper — plays the alert sound immediately.
+ * Use this after a manual/POS order creation where polling won't detect the new
+ * order in time (it would only fire on the next poll cycle).
+ */
+export function playOrderAlertOnce() {
+  const audio = new Audio("/order-alert.wav");
+  audio.play().catch(() => {
+    // Browser may block autoplay if the user hasn't interacted with the page yet.
+  });
+}
+
+/**
  * Plays the order-alert buzzer sound whenever a new order ID appears
  * in the `orders` array that wasn't present in the previous render.
  *
