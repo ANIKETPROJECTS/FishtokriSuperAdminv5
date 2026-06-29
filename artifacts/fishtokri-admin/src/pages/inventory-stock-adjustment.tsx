@@ -128,12 +128,18 @@ function generateNextBatchNumber(productName: string, productBatches: Batch[], s
   const today = getTodayYYYYMMDD();
   let maxNum = 0;
   for (const b of productBatches) {
-    if (b.batchNumber && b.batchNumber.toUpperCase().includes(prefix)) {
-      const match = b.batchNumber.match(/(\d+)$/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
+    if (!b.batchNumber) continue;
+    const bn = b.batchNumber.toUpperCase();
+    // Find where the prefix appears (skip the 8-char date portion)
+    const prefixIdx = bn.indexOf(prefix);
+    if (prefixIdx === -1) continue;
+    // Extract only the part AFTER the prefix — must be 1–5 clean digits only.
+    // Garbled names like "50050002" (>5 digits) or "5005.005e+22" are rejected
+    // so they don't snowball the counter.
+    const afterPrefix = bn.slice(prefixIdx + prefix.length);
+    if (/^\d{1,5}$/.test(afterPrefix)) {
+      const num = parseInt(afterPrefix, 10);
+      if (num > maxNum) maxNum = num;
     }
   }
   return `${today}${prefix}${String(maxNum + 1).padStart(2, "0")}`;
