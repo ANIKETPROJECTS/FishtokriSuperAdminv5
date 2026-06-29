@@ -4173,9 +4173,18 @@ function TimeSlotsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: 
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-[#162B4D] text-sm">{displayTime(s.startTime)} – {displayTime(s.endTime)}</p>
                           {s.isInstant && <span className="text-[10px] bg-orange-50 text-orange-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Instant</span>}
-                          <StatusBadge active={s.isActive !== false} />
+                          <StatusBadge active={s.effectiveIsActive !== false && s.effectiveIsActive !== undefined ? s.effectiveIsActive : s.isActive !== false} />
                         </div>
-                        <p className="text-xs text-gray-400">{displayTime(s.startTime)} – {displayTime(s.endTime)}{s.extraCharge > 0 ? ` · +₹${s.extraCharge} extra` : ""}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex gap-0.5">
+                            {[0,1,2,3,4,5,6].map((d) => {
+                              const days = Array.isArray(s.activeDays) && s.activeDays.length > 0 ? s.activeDays : [0,1,2,3,4,5,6];
+                              const on = days.includes(d);
+                              return <span key={d} className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold ${on ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-300"}`}>{DAY_LABELS[d]}</span>;
+                            })}
+                          </div>
+                          {s.extraCharge > 0 && <span className="text-xs text-gray-400">+₹{s.extraCharge} extra</span>}
+                        </div>
                       </div>
                       {(s.orderLimit ?? 0) > 0 && (
                         <div className="flex items-center gap-1 mr-1 flex-shrink-0">
@@ -4203,9 +4212,18 @@ function TimeSlotsTab({ subHubId, onSetExcel }: { subHubId: string; onSetExcel: 
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-[#162B4D] text-sm">{displayTime(s.startTime)} – {displayTime(s.endTime)}</p>
                   {s.isInstant && <span className="text-[10px] bg-orange-50 text-orange-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Instant</span>}
-                  <StatusBadge active={s.isActive !== false} />
+                  <StatusBadge active={s.effectiveIsActive !== false && s.effectiveIsActive !== undefined ? s.effectiveIsActive : s.isActive !== false} />
                 </div>
-                <p className="text-xs text-gray-400">{displayTime(s.startTime)} – {displayTime(s.endTime)}{s.extraCharge > 0 ? ` · +₹${s.extraCharge} extra` : ""}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex gap-0.5">
+                    {[0,1,2,3,4,5,6].map((d) => {
+                      const days = Array.isArray(s.activeDays) && s.activeDays.length > 0 ? s.activeDays : [0,1,2,3,4,5,6];
+                      const on = days.includes(d);
+                      return <span key={d} className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold ${on ? "bg-[#1A56DB] text-white" : "bg-gray-100 text-gray-300"}`}>{DAY_LABELS[d]}</span>;
+                    })}
+                  </div>
+                  {s.extraCharge > 0 && <span className="text-xs text-gray-400">+₹{s.extraCharge} extra</span>}
+                </div>
               </div>
               {(s.orderLimit ?? 0) > 0 && (
                 <div className="flex items-center gap-1 mr-1 flex-shrink-0">
@@ -4414,6 +4432,10 @@ function TimePickerField({ label, value, onChange }: { label: string; value: str
   );
 }
 
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const DAY_FULL_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ALL_WEEK_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
 function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder = 1, allItems = [] }: any) {
   const { toast } = useToast();
   const isEditing = !!timeslot;
@@ -4422,6 +4444,7 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
   const [isActive, setIsActive] = useState(true);
   const [sortOrder, setSortOrder] = useState("1");
   const [orderLimit, setOrderLimit] = useState("0");
+  const [activeDays, setActiveDays] = useState<number[]>(ALL_WEEK_DAYS);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -4432,20 +4455,28 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
         setIsActive(timeslot.isActive !== false);
         setSortOrder(String(timeslot.sortOrder ?? 0));
         setOrderLimit(String(timeslot.orderLimit ?? 0));
+        setActiveDays(Array.isArray(timeslot.activeDays) && timeslot.activeDays.length > 0 ? timeslot.activeDays : ALL_WEEK_DAYS);
       } else {
-        setStartTime(""); setEndTime(""); setIsActive(true); setSortOrder(String(nextOrder)); setOrderLimit("0");
+        setStartTime(""); setEndTime(""); setIsActive(true); setSortOrder(String(nextOrder)); setOrderLimit("0"); setActiveDays(ALL_WEEK_DAYS);
       }
     }
   }, [isOpen, timeslot, nextOrder]);
 
+  const toggleDay = (day: number) => {
+    setActiveDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     if (!startTime || !endTime) { toast({ title: "Please select both start and end times.", variant: "destructive" }); setSaving(false); return; }
+    if (activeDays.length === 0) { toast({ title: "Select at least one active day.", variant: "destructive" }); setSaving(false); return; }
     const soNum = Number(sortOrder) || 0;
     const dup = allItems.some((x: any) => (x.sortOrder ?? 0) === soNum && String(x._id) !== String(timeslot?._id));
     if (dup) { toast({ title: "Duplicate order number", description: `Sort order ${soNum} is already used by another time slot.`, variant: "destructive" }); setSaving(false); return; }
     const label = `${startTime} - ${endTime}`;
-    const payload = { startTime, endTime, label, isActive, sortOrder: soNum, orderLimit: Number(orderLimit) || 0 };
+    const payload = { startTime, endTime, label, isActive, sortOrder: soNum, orderLimit: Number(orderLimit) || 0, activeDays };
     try {
       if (isEditing) { await apiFetch(`/api/sub-hubs/${subHubId}/menu/timeslots/${timeslot._id}`, { method: "PUT", body: JSON.stringify(payload) }); toast({ title: "Time slot updated" }); }
       else { await apiFetch(`/api/sub-hubs/${subHubId}/menu/timeslots`, { method: "POST", body: JSON.stringify(payload) }); toast({ title: "Time slot added" }); }
@@ -4456,7 +4487,7 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[440px]">
         <DialogHeader><DialogTitle className="text-[#162B4D]">{isEditing ? "Edit Time Slot" : "Add Time Slot"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 pt-1">
           <div className="grid grid-cols-2 gap-3">
@@ -4466,6 +4497,30 @@ function TimeslotModal({ isOpen, onClose, timeslot, subHubId, onSaved, nextOrder
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label className="text-xs font-semibold text-gray-600">Sort Order</Label><Input type="number" min="0" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="h-9" /></div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><Label className="text-sm">Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} className="data-[state=checked]:bg-[#1A56DB]" /></div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-600">Active Days</Label>
+            <div className="flex gap-1.5 flex-wrap">
+              {ALL_WEEK_DAYS.map((day) => {
+                const selected = activeDays.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleDay(day)}
+                    title={DAY_FULL_LABELS[day]}
+                    className={`w-9 h-9 rounded-lg text-xs font-bold transition-colors ${
+                      selected
+                        ? "bg-[#1A56DB] text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
+                  >
+                    {DAY_LABELS[day]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-gray-400">Slot auto-deactivates on unselected days.</p>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-gray-600">Order Limit</Label>

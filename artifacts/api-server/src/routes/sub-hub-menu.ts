@@ -956,6 +956,15 @@ function getTimeslotTodayISO(): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Returns the current day of week in IST (0=Sunday … 6=Saturday). */
+function getISTDayOfWeek(): number {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.getUTCDay();
+}
+
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
 /** Returns tomorrow's date in YYYY-MM-DD format using IST (UTC+5:30). */
 function getTimeslotTomorrowISO(): string {
   const now = new Date();
@@ -1039,6 +1048,18 @@ router.get("/timeslots", async (req, res) => {
       }
     }
 
+    // Compute effectiveIsActive: manualIsActive AND today's day is in activeDays.
+    const todayDow = getISTDayOfWeek();
+    for (const slot of timeslots as any[]) {
+      const activeDays: number[] = Array.isArray(slot.activeDays) && slot.activeDays.length > 0
+        ? slot.activeDays
+        : ALL_DAYS;
+      const dayAllowed = activeDays.includes(todayDow);
+      slot.effectiveIsActive = (slot.isActive !== false) && dayAllowed;
+      // Ensure activeDays is always returned (default all days for old records)
+      slot.activeDays = activeDays;
+    }
+
     res.json({ timeslots, total: timeslots.length });
   } catch (err) {
     req.log.error({ err }, "Failed to get timeslots");
@@ -1050,9 +1071,12 @@ router.post("/timeslots", async (req, res) => {
   try {
     const ctx = await getSubHubDb(req.params.id, res, req as ScopedRequest);
     if (!ctx) return;
-    const { label, startTime, endTime, isInstant, extraCharge, isActive, sortOrder, orderLimit } = req.body;
+    const { label, startTime, endTime, isInstant, extraCharge, isActive, sortOrder, orderLimit, activeDays } = req.body;
     if (!startTime || !endTime) { res.status(400).json({ error: "ValidationError", message: "Start time and end time are required" }); return; }
     const resolvedLabel = label && String(label).trim() ? String(label).trim() : `${startTime} - ${endTime}`;
+    const resolvedActiveDays: number[] = Array.isArray(activeDays) && activeDays.length > 0
+      ? activeDays.map(Number).filter((d) => d >= 0 && d <= 6)
+      : ALL_DAYS;
     const doc = {
       label: resolvedLabel,
       startTime,
@@ -1062,6 +1086,7 @@ router.post("/timeslots", async (req, res) => {
       isActive: isActive !== false,
       sortOrder: Number(sortOrder) || 0,
       orderLimit: Number(orderLimit) || 0,
+      activeDays: resolvedActiveDays,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1098,7 +1123,7 @@ router.put("/timeslots/:timeslotId", async (req, res) => {
     if (!ctx) return;
     const oid = toId(req.params.timeslotId);
     if (!oid) { res.status(400).json({ error: "InvalidId", message: "Invalid timeslot ID" }); return; }
-    const { label, startTime, endTime, isInstant, extraCharge, isActive, sortOrder, orderLimit } = req.body;
+    const { label, startTime, endTime, isInstant, extraCharge, isActive, sortOrder, orderLimit, activeDays } = req.body;
     const update: any = { updatedAt: new Date() };
     if (label !== undefined) update.label = label;
     if (startTime !== undefined) update.startTime = startTime;
@@ -1112,6 +1137,11 @@ router.put("/timeslots/:timeslotId", async (req, res) => {
     }
     if (sortOrder !== undefined) update.sortOrder = Number(sortOrder) || 0;
     if (orderLimit !== undefined) update.orderLimit = Number(orderLimit) || 0;
+    if (activeDays !== undefined) {
+      update.activeDays = Array.isArray(activeDays) && activeDays.length > 0
+        ? activeDays.map(Number).filter((d: number) => d >= 0 && d <= 6)
+        : ALL_DAYS;
+    }
     const result = await ctx.conn.db.collection("timeslots").findOneAndUpdate({ _id: oid }, { $set: update }, { returnDocument: "after" });
     if (!result) { res.status(404).json({ error: "NotFound", message: "Timeslot not found" }); return; }
     res.json({ timeslot: result });
