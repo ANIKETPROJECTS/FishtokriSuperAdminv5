@@ -40,6 +40,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useOrderAlert } from "@/hooks/use-order-alert";
 import { printHtmlWithQZ } from "@/lib/qz-print";
 import { useLocation } from "wouter";
 import { getCurrentAdminScope } from "@/lib/api";
@@ -888,6 +889,9 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState<Record<string, number>>({});
   const [statsTotals, setStatsTotals] = useState<{ total?: number; currentTotal?: number; historyTotal?: number; todayTotal?: number; otherDayTotal?: number }>({});
+
+  // Play buzzer sound whenever a new order arrives via polling
+  useOrderAlert(orders);
 
   // Detail modal
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
