@@ -809,6 +809,34 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
                   </td>
                 </tr>
               ))}
+              {(() => {
+                const gtTotal    = filteredOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+                const gtWallet   = filteredOrders.reduce((s, o) => s + orderWalletUsed(o), 0);
+                const gtNetCol   = filteredOrders.filter(o => orderWalletUsed(o) > 0).reduce((s, o) => s + Math.max(0, (Number(o.total) || 0) - orderWalletUsed(o)), 0);
+                const gtDue      = filteredOrders.reduce((s, o) => s + orderDueAmount(o), 0);
+                const cellBase   = { padding: "10px 14px", fontWeight: 700, whiteSpace: "nowrap" as const, fontSize: 13 };
+                const numCell    = { ...cellBase, textAlign: "right" as const };
+                const bg         = { background: "#f1f5f9", borderTop: "2px solid #cbd5e1" };
+                return (
+                  <tr style={bg}>
+                    <td style={{ ...cellBase, ...bg, color: "#1e3a5f", fontSize: 12, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Grand Total</td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...numCell, ...bg, color: "#111" }}>{formatRupees(gtTotal)}</td>
+                    <td style={{ ...numCell, ...bg, color: gtWallet > 0 ? "#7c3aed" : "#bbb" }}>{gtWallet > 0 ? formatRupees(gtWallet) : "—"}</td>
+                    <td style={{ ...numCell, ...bg, color: gtNetCol > 0 ? "#0369a1" : "#bbb" }}>{gtNetCol > 0 ? formatRupees(gtNetCol) : "—"}</td>
+                    <td style={{ ...numCell, ...bg, color: gtDue > 0 ? "#dc2626" : "#16a34a" }}>{gtDue > 0 ? formatRupees(gtDue) : "—"}</td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                    <td style={{ ...cellBase, ...bg }}></td>
+                  </tr>
+                );
+              })()}
             </tbody>
           </table>
           </div>
