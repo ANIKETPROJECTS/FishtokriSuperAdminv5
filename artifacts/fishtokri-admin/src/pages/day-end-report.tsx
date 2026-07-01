@@ -642,9 +642,9 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
           {/* Top scrollbar mirror */}
           <div
             ref={topScrollRef}
-            style={{ overflowX: "auto", overflowY: "hidden", marginLeft: -28, marginRight: -28, paddingLeft: 28, paddingRight: 28, marginBottom: 4 }}
+            style={{ overflowX: "auto", overflowY: "hidden", marginLeft: -28, marginRight: -28, paddingLeft: 28, paddingRight: 28, marginBottom: 6, paddingBottom: 1 }}
           >
-            <div style={{ height: 1, minWidth: 1600, width: "max-content" }} />
+            <div style={{ height: 12, minWidth: 1600 }} />
           </div>
           {/* Actual table */}
           <div
@@ -654,7 +654,7 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
           <table style={{ width: "max-content", minWidth: 1600, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                {["Invoice No","Order Placed","Delivery Date","Customer","Phone","Items & Qty","Total","Wallet Used","Bal. Due (Cash/UPI)","Due Amount","Delivery Partner","Payment Mode","Payment Status","Order Status","Receipt"].map(h => (
+                {["Invoice No","Order Placed","Delivery Date","Customer","Phone","Items & Qty","Total","Wallet Used","Total - Wallet Used","Due Amount","Delivery Partner","Payment Mode","Payment Status","Order Status","Receipt"].map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#555", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
