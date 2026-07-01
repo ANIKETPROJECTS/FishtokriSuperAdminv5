@@ -440,9 +440,12 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
         }
         // wallet-only: no physical collection — not counted in cash/upi/card
       } else {
-        // Fallback: use paymentMode string
-        const paidAmt = isPartial
-          ? (o.paidAmount != null ? Number(o.paidAmount) : total)
+        // Fallback for old records with no payments array.
+        // Always use paidAmount (capped at total) when available — for Wallet+Cash orders,
+        // paidAmount stores only the physically-collected portion (not the wallet credit).
+        // For pure-cash/upi orders paidAmount == total so there is no change.
+        const paidAmt = (o.paidAmount != null && Number(o.paidAmount) > 0)
+          ? Math.min(Number(o.paidAmount), total)
           : total;
         const modeStr = String(o.paymentMode || "").toLowerCase()
           .replace(/wallet\s*,\s*/gi, "")
