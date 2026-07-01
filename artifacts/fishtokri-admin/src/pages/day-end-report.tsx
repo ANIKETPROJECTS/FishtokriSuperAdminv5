@@ -303,8 +303,38 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
   const [ordSearch, setOrdSearch] = useState("");
   const [ordPayFilter, setOrdPayFilter] = useState<"all" | "paid" | "partial" | "unpaid">("all");
+  const [ordPayModeFilter, setOrdPayModeFilter] = useState<"all" | "cash" | "upi" | "card" | "wallet">("all");
   const [ordStatusFilter, setOrdStatusFilter] = useState<"all" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled">("all");
   const [ordSort, setOrdSort] = useState<"default" | "total_desc" | "total_asc" | "customer_az" | "invoice_az">("default");
+
+  function orderMatchesPayMode(o: any, mode: string): boolean {
+    const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
+    if (pays.length > 0) {
+      return pays.some((p: any) => {
+        const m = String(p?.mode || "").toLowerCase();
+        if (mode === "cash") return m === "cash" || m === "cod";
+        if (mode === "upi") return m === "upi" || m.includes("gpay") || m.includes("paytm") || m.includes("phonepe");
+        if (mode === "card") return m === "card";
+        if (mode === "wallet") return m === "wallet";
+        return false;
+      });
+    }
+    const modeStr = String(o.paymentMode || "").toLowerCase();
+    if (mode === "cash") return modeStr.includes("cash") || modeStr.includes("cod");
+    if (mode === "upi") return modeStr.includes("upi") || modeStr.includes("gpay") || modeStr.includes("paytm") || modeStr.includes("phonepe");
+    if (mode === "card") return modeStr.includes("card");
+    if (mode === "wallet") return modeStr.includes("wallet");
+    return false;
+  }
+
+  function orderDueAmount(o: any): number {
+    const status = String(o.paymentStatus || "").toLowerCase();
+    if (status === "paid") return 0;
+    if (o.dueAmount != null && Number(o.dueAmount) >= 0) return Number(o.dueAmount);
+    if (o.paidAmount != null) return Math.max(0, (Number(o.total) || 0) - Number(o.paidAmount));
+    if (status === "unpaid") return Number(o.total) || 0;
+    return 0;
+  }
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["day-end-orders", from, to],
@@ -336,6 +366,7 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
       });
     }
     if (ordPayFilter !== "all") list = list.filter(o => String(o.paymentStatus || "").toLowerCase() === ordPayFilter);
+    if (ordPayModeFilter !== "all") list = list.filter(o => orderMatchesPayMode(o, ordPayModeFilter));
     if (ordStatusFilter !== "all") list = list.filter(o => String(o.status || "").toLowerCase() === ordStatusFilter);
     if (ordSort === "total_desc") list.sort((a, b) => (b.total || 0) - (a.total || 0));
     else if (ordSort === "total_asc") list.sort((a, b) => (a.total || 0) - (b.total || 0));
@@ -501,6 +532,25 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
             ))}
           </div>
 
+          {/* Payment mode pills */}
+          <div style={{ display: "flex", gap: 4 }}>
+            {([
+              ["all", "All Modes"],
+              ["cash", "Cash"],
+              ["upi", "UPI"],
+              ["card", "Card"],
+              ["wallet", "Wallet"],
+            ] as [typeof ordPayModeFilter, string][]).map(([val, label]) => (
+              <button key={val} onClick={() => setOrdPayModeFilter(val)} style={{
+                height: 32, padding: "0 12px", borderRadius: 20, border: "1px solid",
+                fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap",
+                background: ordPayModeFilter === val ? (val === "cash" ? "#16a34a" : val === "upi" ? "#7c3aed" : val === "card" ? "#ea580c" : val === "wallet" ? "#2563eb" : "#364F9F") : "#f3f4f6",
+                color: ordPayModeFilter === val ? "#fff" : "#555",
+                borderColor: ordPayModeFilter === val ? "transparent" : "#e5e7eb",
+              }}>{label}</button>
+            ))}
+          </div>
+
           {/* Order status pills */}
           <div style={{ display: "flex", gap: 4 }}>
             {([
@@ -554,7 +604,7 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                {["Invoice No","Order Placed","Delivery Date","Customer","Phone","Items & Qty","Total","Delivery Partner","Payment Mode","Payment Status","Order Status","Receipt"].map(h => (
+                {["Invoice No","Order Placed","Delivery Date","Customer","Phone","Items & Qty","Total","Due Amount","Delivery Partner","Payment Mode","Payment Status","Order Status","Receipt"].map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#555", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
@@ -584,6 +634,9 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
                     ))}
                   </td>
                   <td style={{ padding: "10px 14px", fontWeight: 700, color: "#000", whiteSpace: "nowrap", textAlign: "right" }}>{formatRupees(o.total)}</td>
+                  <td style={{ padding: "10px 14px", fontWeight: 700, whiteSpace: "nowrap", textAlign: "right", color: orderDueAmount(o) > 0 ? "#dc2626" : "#16a34a" }}>
+                    {orderDueAmount(o) > 0 ? formatRupees(orderDueAmount(o)) : "—"}
+                  </td>
                   <td style={{ padding: "10px 14px", color: "#444", whiteSpace: "nowrap" }}>{o.deliveryPerson}</td>
                   <td style={{ padding: "10px 14px", fontWeight: 500, color: "#000", whiteSpace: "nowrap" }}>{(String(o.paymentMode || "").toLowerCase() === "upi" && o.upiVariant) ? o.upiVariant : o.paymentMode}</td>
                   <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
