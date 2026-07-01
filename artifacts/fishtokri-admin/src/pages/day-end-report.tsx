@@ -415,11 +415,20 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
 
   function orderMatchesPayMode(o: any, mode: string): boolean {
     const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
+    const isUpiVariant = (m: string) =>
+      m === "upi" || m.includes("gpay") || m.includes("paytm") || m.includes("phonepe");
+
     if (pays.length > 0) {
+      const payModes = pays.map((p: any) => String(p?.mode || "").toLowerCase());
+      // Business rule: Cash and UPI cannot coexist. If both present (data error), treat as UPI only.
+      const hasCash = payModes.some(m => m === "cash" || m === "cod");
+      const hasUpi  = payModes.some(m => isUpiVariant(m));
+      if (hasCash && hasUpi && mode === "cash") return false;
+
       return pays.some((p: any) => {
         const m = String(p?.mode || "").toLowerCase();
         if (mode === "cash") return m === "cash" || m === "cod";
-        if (mode === "upi") return m === "upi" || m.includes("gpay") || m.includes("paytm") || m.includes("phonepe");
+        if (mode === "upi") return isUpiVariant(m);
         if (mode === "card") return m === "card";
         if (mode === "wallet") return m === "wallet";
         return false;

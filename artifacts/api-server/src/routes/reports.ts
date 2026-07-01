@@ -70,10 +70,18 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
       const upiLabel = o.upiVariant ? String(o.upiVariant).trim() : "UPI";
       let paymentMode = "—";
       if (payments.length > 0) {
-        const modes = [...new Set(payments.map((p: any) => (p.mode || "").toLowerCase()).filter(Boolean))];
+        let modes = [...new Set(payments.map((p: any) => (p.mode || "").toLowerCase()).filter(Boolean))];
+        // Business rule: an order cannot be both Cash and UPI simultaneously.
+        // If both exist in payments[] it is a data error — treat as UPI only (drop cash).
+        const isUpiVariant = (m: string) => m === "upi" || m.includes("gpay") || m.includes("paytm") || m.includes("phonepe");
+        const hasCashMode = modes.some(m => m === "cash" || m === "cod");
+        const hasUpiMode  = modes.some(m => isUpiVariant(m));
+        if (hasCashMode && hasUpiMode) {
+          modes = modes.filter(m => m !== "cash" && m !== "cod");
+        }
         paymentMode = modes.map((m: string) => {
           if (m === "cash" || m === "cod") return "Cash";
-          if (m === "upi") return upiLabel;
+          if (isUpiVariant(m)) return upiLabel;
           if (m === "card") return "Card";
           if (m === "wallet") return "Wallet";
           if (m === "bank") return "Bank";
