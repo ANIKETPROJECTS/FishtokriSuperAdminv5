@@ -376,7 +376,7 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   }, [orders, ordSearch, ordPayFilter, ordPayModeFilter, ordStatusFilter, ordSort]);
 
   const stats = useMemo(() => {
-    let cash = 0, upi = 0, card = 0, wallet = 0, other = 0, unpaid = 0, totalRev = 0;
+    let cash = 0, upi = 0, card = 0, wallet = 0, unpaid = 0;
     for (const o of orders) {
       if (String(o.orderStatus || o.status || "").toLowerCase() === "cancelled") continue;
       const total = Number(o.total) || 0;
@@ -399,36 +399,28 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
       // For fully unpaid orders there's nothing actually collected — skip revenue split
       if (isUnpaid) continue;
 
-      // Grand Total = sum of order totals (what was invoiced to customers)
-      totalRev += total;
-
       const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
       if (pays.length > 0) {
         const nonWalletPays = pays.filter((p: any) => String(p?.mode || "").toLowerCase() !== "wallet");
         const nonWalletPaid = nonWalletPays.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
 
         // Extra physically collected beyond order total → credited to customer wallet
-        // This is the only amount that counts as "wallet collected"
         const excessToWallet = Math.max(0, nonWalletPaid - total);
         wallet += excessToWallet;
 
         if (nonWalletPays.length > 0) {
-          // Attribute the full ORDER TOTAL to the primary non-wallet payment channel.
-          // (For wallet+cash orders, the full invoice value is still a "cash order" —
-          //  the wallet discount is internal; the delivery channel is cash.)
           const primaryMode = String(nonWalletPays[0]?.mode || "").toLowerCase();
           if (primaryMode === "cash" || primaryMode === "cod") cash += total;
           else if (primaryMode === "upi") upi += total;
           else if (primaryMode === "card") card += total;
-          else other += total;
+          // unrecognised mode: not counted in any displayed bucket
         }
-        // If ALL payments are wallet-mode: fully covered by wallet credit, no physical collection
+        // wallet-only: no physical collection — not counted in cash/upi/card
       } else {
         // Fallback: use paymentMode string
         const paidAmt = isPartial
           ? (o.paidAmount != null ? Number(o.paidAmount) : total)
           : total;
-        // Strip "Wallet, " prefix or suffix for mixed-mode strings
         const modeStr = String(o.paymentMode || "").toLowerCase()
           .replace(/wallet\s*,\s*/gi, "")
           .replace(/,\s*wallet/gi, "")
@@ -436,10 +428,11 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
         if (modeStr === "cash" || modeStr === "cod") cash += paidAmt;
         else if (modeStr === "upi" || modeStr.includes("gpay") || modeStr.includes("paytm") || modeStr.includes("phonepe") || modeStr.startsWith("gpay") || (modeStr.length > 0 && !modeStr.includes("cash") && !modeStr.includes("card") && modeStr !== "wallet")) upi += paidAmt;
         else if (modeStr === "card") card += paidAmt;
-        else if (modeStr === "wallet" || modeStr === "") { /* wallet-only: no physical collection */ }
-        else other += paidAmt;
+        // wallet-only or empty: no physical collection
       }
     }
+    // Grand Total = Cash + UPI + Card (what was actually collected via payment channels)
+    const totalRev = cash + upi + card;
     return { cash, upi, card, wallet, totalRev, unpaid };
   }, [orders]);
 
