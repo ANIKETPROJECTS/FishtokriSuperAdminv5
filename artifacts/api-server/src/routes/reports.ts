@@ -125,6 +125,7 @@ router.get("/day-end/orders", async (req: ScopedRequest, res) => {
         deliveryCharge: Number(o.deliveryCharge) || 0,
         paidAmount: Number(o.paidAmount) ?? null,
         dueAmount: Number(o.dueAmount) ?? null,
+        walletUsed: Number(o.walletUsed) || 0,
         payments: payments.map((p: any) => ({
           mode: String(p.mode || "").toLowerCase(),
           amount: Number(p.amount) || 0,

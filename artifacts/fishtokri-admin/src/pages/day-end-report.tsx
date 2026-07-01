@@ -495,19 +495,16 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   }, [orders, ordSearch, ordPayFilter, ordPayModeFilter, ordStatusFilter, ordSort]);
 
   const stats = useMemo(() => {
-    let cash = 0, upi = 0, card = 0, wallet = 0, unpaid = 0;
+    let cash = 0, upi = 0, card = 0, wallet = 0, totalRev = 0, unpaid = 0;
+
     for (const o of orders) {
       const isCancelled = String(o.orderStatus || o.status || "").toLowerCase() === "cancelled";
       const total = Number(o.total) || 0;
-
       const statusLower = String(o.paymentStatus || "").toLowerCase();
       const isUnpaid = statusLower === "unpaid";
       const isPartial = statusLower === "partial";
 
-      // Accumulate unpaid dues for ALL orders (including cancelled) —
-      // a cancelled order that was never paid still has an outstanding due.
-      // For Unpaid: always use the full order total (don't trust dueAmount — older records may have dueAmount=0).
-      // For Partial: use dueAmount if positive, else derive from paidAmount.
+      // Unpaid dues — accumulated for ALL orders including cancelled
       if (isUnpaid) {
         unpaid += total;
       } else if (isPartial) {
@@ -520,79 +517,46 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
         }
       }
 
-      // Cancelled or fully unpaid orders contribute nothing to revenue — skip the payment split
+      // Cancelled or fully unpaid → no revenue contribution
       if (isCancelled || isUnpaid) continue;
 
       const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
-      // walletUsed on the order document = credit drawn from customer's stored wallet balance.
-      // Some records store this in payments[], others only in o.walletUsed.
-      const orderWalletUsed = Number(o.walletUsed) || 0;
 
-      if (pays.length > 0) {
-        const nonWalletPays = pays.filter((p: any) => String(p?.mode || "").toLowerCase() !== "wallet");
-        const nonWalletPaid = nonWalletPays.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+      // Wallet used: prefer payments[] wallet entries; fall back to o.walletUsed (now in server response)
+      const walletFromPays = pays
+        .filter((p: any) => String(p?.mode || "").toLowerCase() === "wallet")
+        .reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+      const walletUsed = walletFromPays > 0 ? walletFromPays : (Number(o.walletUsed) || 0);
 
-        // Extra physically collected beyond order total → credited to customer wallet
-        const excessToWallet = Math.max(0, nonWalletPaid - total);
-        wallet += excessToWallet;
+      // Collected = total − wallet (the physically received non-wallet amount)
+      const collected = Math.max(0, total - walletUsed);
 
-        if (nonWalletPays.length > 0) {
-          // Wallet deduction: use wallet entries from payments[], fall back to o.walletUsed.
-          const walletFromPays = pays
-            .filter((p: any) => String(p?.mode || "").toLowerCase() === "wallet")
-            .reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
-          const totalWalletUsed = walletFromPays > 0 ? walletFromPays : orderWalletUsed;
-          // Scale factor: normalises raw payment amounts down to (total - wallet).
-          // Handles both single-mode orders (where DB may store the full total in one entry)
-          // and mixed-mode orders (Cash + UPI, etc.) so each mode gets its correct share.
-          const scaleFactor = nonWalletPaid > 0
-            ? Math.min(1, Math.max(0, total - totalWalletUsed) / nonWalletPaid)
-            : 0;
-          // UPI variant helper — gpay/paytm/phonepe stored in payments[].mode must not
-          // fall through to the "unrecognised" bucket.
-          const isUpiLike = (m: string) =>
-            m === "upi" || m.includes("gpay") || m.includes("paytm") || m.includes("phonepe");
-          // Distribute each non-wallet payment into its bucket (supports mixed-mode orders).
-          for (const p of nonWalletPays) {
-            const m = String(p?.mode || "").toLowerCase();
-            const amt = (Number(p.amount) || 0) * scaleFactor;
-            if (m === "cash" || m === "cod") cash += amt;
-            else if (isUpiLike(m)) upi += amt;
-            else if (m === "card") card += amt;
-          }
-        }
-        // wallet-only: no physical collection — not counted in cash/upi/card
-      } else {
-        // Fallback for old records with no payments array.
-        // Deduct walletUsed from paidAmount to get the physically-collected portion.
-        const rawPaid = (o.paidAmount != null && Number(o.paidAmount) > 0)
-          ? Math.min(Number(o.paidAmount), total)
-          : total;
-        // Deduct wallet credit so we count only physically collected cash/UPI/card.
-        const paidAmt = Math.max(0, rawPaid - orderWalletUsed);
-        const modeStr = String(o.paymentMode || "").toLowerCase()
-          .replace(/wallet\s*,\s*/gi, "")
-          .replace(/,\s*wallet/gi, "")
-          .trim();
-        if (modeStr === "cash" || modeStr === "cod") cash += paidAmt;
-        else if (modeStr === "upi" || modeStr.includes("gpay") || modeStr.includes("paytm") || modeStr.includes("phonepe") || modeStr.startsWith("gpay") || (modeStr.length > 0 && !modeStr.includes("cash") && !modeStr.includes("card") && modeStr !== "wallet")) upi += paidAmt;
-        else if (modeStr === "card") card += paidAmt;
-        // wallet-only or empty: no physical collection
-      }
+      // Excess: physically received more than order total → credited back to wallet balance
+      const nonWalletPaid = pays
+        .filter((p: any) => String(p?.mode || "").toLowerCase() !== "wallet")
+        .reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+      wallet += Math.max(0, nonWalletPaid - total);
+
+      // Grand total: one contribution per order, no double-counting across modes
+      totalRev += collected;
+
+      // Mode buckets use the SAME filter logic as the UI mode buttons.
+      // An order with mixed modes (e.g. Cash + UPI) contributes its full collected
+      // amount to BOTH buckets — consistent with: "filter by mode → sum total−wallet".
+      if (orderMatchesPayMode(o, "cash")) cash += collected;
+      if (orderMatchesPayMode(o, "upi"))  upi  += collected;
+      if (orderMatchesPayMode(o, "card")) card += collected;
     }
-    // Grand Total = Cash + UPI + Card + Wallet Collected.
-    // Cash/UPI/Card tiles = sum of order-total portions (capped, wallet credits deducted).
-    // Wallet Collected = physical excess cash received beyond order totals → real money, must be included.
-    // Round to 2 decimal places to eliminate floating-point accumulation drift
-    // (e.g. 3855.9999… → 3856.00) without discarding valid paise precision.
+
     const r2 = (n: number) => Math.round(n * 100) / 100;
-    cash   = r2(cash);
-    upi    = r2(upi);
-    card   = r2(card);
-    wallet = r2(wallet);
-    unpaid = r2(unpaid);
-    const totalRev = cash + upi + card + wallet;
-    return { cash, upi, card, wallet, totalRev, unpaid };
+    return {
+      cash:     r2(cash),
+      upi:      r2(upi),
+      card:     r2(card),
+      wallet:   r2(wallet),
+      totalRev: r2(totalRev + wallet),
+      unpaid:   r2(unpaid),
+    };
   }, [orders]);
 
   const handleDownload = useCallback(() => {
