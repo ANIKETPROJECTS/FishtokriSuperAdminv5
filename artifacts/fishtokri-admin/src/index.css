@@ -160,3 +160,33 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* ── Day-End Report: always-visible horizontal scrollbars ── */
+.der-top-scroll,
+.der-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #a0aec0 #edf2f7;
+}
+
+.der-top-scroll::-webkit-scrollbar,
+.der-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.der-top-scroll::-webkit-scrollbar-track,
+.der-table-scroll::-webkit-scrollbar-track {
+  background: #edf2f7;
+  border-radius: 6px;
+}
+
+.der-top-scroll::-webkit-scrollbar-thumb,
+.der-table-scroll::-webkit-scrollbar-thumb {
+  background: #a0aec0;
+  border-radius: 6px;
+  border: 2px solid #edf2f7;
+}
+
+.der-top-scroll::-webkit-scrollbar-thumb:hover,
+.der-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
