@@ -427,12 +427,15 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
         wallet += excessToWallet;
 
         if (nonWalletPays.length > 0) {
-          // Use nonWalletPaid (actual physical collection), NOT total.
-          // total includes wallet credits applied; nonWalletPaid is real cash/upi/card received.
+          // Use min(nonWalletPaid, total): the order-total portion only.
+          // - Wallet-credit applied: nonWalletPaid < total → counts actual cash paid (Bal. Due).
+          // - Customer over-paid (excess → wallet): nonWalletPaid > total → capped at total;
+          //   excess already captured in excessToWallet / wallet tile.
+          const collectedForOrder = Math.min(nonWalletPaid, total);
           const primaryMode = String(nonWalletPays[0]?.mode || "").toLowerCase();
-          if (primaryMode === "cash" || primaryMode === "cod") cash += nonWalletPaid;
-          else if (primaryMode === "upi") upi += nonWalletPaid;
-          else if (primaryMode === "card") card += nonWalletPaid;
+          if (primaryMode === "cash" || primaryMode === "cod") cash += collectedForOrder;
+          else if (primaryMode === "upi") upi += collectedForOrder;
+          else if (primaryMode === "card") card += collectedForOrder;
           // unrecognised mode: not counted in any displayed bucket
         }
         // wallet-only: no physical collection — not counted in cash/upi/card
@@ -451,10 +454,10 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
         // wallet-only or empty: no physical collection
       }
     }
-    // Grand Total = Cash + UPI + Card (physical non-wallet payments only).
-    // wallet excess (nonWalletPaid > total) is already captured in cash/upi/card via nonWalletPaid;
-    // adding wallet again would double-count it.  Wallet Collected is displayed separately.
-    const totalRev = cash + upi + card;
+    // Grand Total = Cash + UPI + Card + Wallet Collected.
+    // Cash/UPI/Card tiles = sum of order-total portions (capped, wallet credits deducted).
+    // Wallet Collected = physical excess cash received beyond order totals → real money, must be included.
+    const totalRev = cash + upi + card + wallet;
     return { cash, upi, card, wallet, totalRev, unpaid };
   }, [orders]);
 
