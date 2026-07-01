@@ -298,6 +298,103 @@ function InvoiceModal({ order, onClose }: { order: any; onClose: () => void }) {
   );
 }
 
+// ── Custom drag scrollbar (always-visible, works regardless of OS/browser) ────
+function DragScrollbar({ scrollRef }: { scrollRef: React.RefObject<HTMLDivElement | null> }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScroll = useRef(0);
+
+  const updateThumb = useCallback(() => {
+    const el = scrollRef.current;
+    const track = trackRef.current;
+    const thumb = thumbRef.current;
+    if (!el || !track || !thumb) return;
+    const { scrollWidth, clientWidth, scrollLeft } = el;
+    if (scrollWidth <= clientWidth) { thumb.style.display = "none"; return; }
+    thumb.style.display = "block";
+    const trackW = track.clientWidth;
+    const thumbW = Math.max(40, (clientWidth / scrollWidth) * trackW);
+    const maxScroll = scrollWidth - clientWidth;
+    const thumbLeft = (scrollLeft / maxScroll) * (trackW - thumbW);
+    thumb.style.width = `${thumbW}px`;
+    thumb.style.left = `${thumbLeft}px`;
+  }, [scrollRef]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateThumb, { passive: true });
+    const ro = new ResizeObserver(updateThumb);
+    ro.observe(el);
+    updateThumb();
+    return () => { el.removeEventListener("scroll", updateThumb); ro.disconnect(); };
+  }, [scrollRef, updateThumb]);
+
+  const onThumbMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartScroll.current = scrollRef.current?.scrollLeft ?? 0;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const el = scrollRef.current; const track = trackRef.current; const thumb = thumbRef.current;
+      if (!el || !track || !thumb) return;
+      const dx = ev.clientX - dragStartX.current;
+      const trackW = track.clientWidth;
+      const thumbW = thumb.clientWidth;
+      const ratio = dx / (trackW - thumbW);
+      el.scrollLeft = dragStartScroll.current + ratio * (el.scrollWidth - el.clientWidth);
+    };
+    const onUp = () => {
+      dragging.current = false;
+      if (thumbRef.current) thumbRef.current.style.cursor = "grab";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    if (thumbRef.current) thumbRef.current.style.cursor = "grabbing";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [scrollRef]);
+
+  const onTrackClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const thumb = thumbRef.current; const track = trackRef.current; const el = scrollRef.current;
+    if (!thumb || !track || !el) return;
+    if ((e.target as Node) === thumb) return; // handled by thumb
+    const rect = track.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const thumbW = thumb.clientWidth;
+    const trackW = rect.width;
+    const ratio = Math.max(0, Math.min(1, (clickX - thumbW / 2) / (trackW - thumbW)));
+    el.scrollLeft = ratio * (el.scrollWidth - el.clientWidth);
+  }, [scrollRef]);
+
+  return (
+    <div
+      ref={trackRef}
+      onMouseDown={onTrackClick}
+      style={{
+        position: "relative", height: 12, background: "#e2e8f0", borderRadius: 8,
+        marginBottom: 8, cursor: "pointer", userSelect: "none", flexShrink: 0,
+      }}
+    >
+      <div
+        ref={thumbRef}
+        onMouseDown={onThumbMouseDown}
+        style={{
+          position: "absolute", top: 2, height: 8,
+          background: "#94a3b8", borderRadius: 6, cursor: "grab",
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = "#64748b")}
+        onMouseLeave={e => { if (!dragging.current) e.currentTarget.style.background = "#94a3b8"; }}
+      />
+    </div>
+  );
+}
+
 // ── ORDERS REPORT ─────────────────────────────────────────────────────────────
 function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to: string; onDownload: (fn: () => void) => void; downloadRef: any }) {
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
@@ -307,19 +404,7 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   const [ordStatusFilter, setOrdStatusFilter] = useState<"all" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled">("all");
   const [ordSort, setOrdSort] = useState<"default" | "total_desc" | "total_asc" | "customer_az" | "invoice_az">("default");
 
-  const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const top = topScrollRef.current;
-    const tbl = tableScrollRef.current;
-    if (!top || !tbl) return;
-    const onTop = () => { tbl.scrollLeft = top.scrollLeft; };
-    const onTbl = () => { top.scrollLeft = tbl.scrollLeft; };
-    top.addEventListener("scroll", onTop);
-    tbl.addEventListener("scroll", onTbl);
-    return () => { top.removeEventListener("scroll", onTop); tbl.removeEventListener("scroll", onTbl); };
-  }, []);
 
   function orderMatchesPayMode(o: any, mode: string): boolean {
     const pays: any[] = Array.isArray(o.payments) ? o.payments : [];
@@ -636,22 +721,15 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
         </div>
       )}
 
-      {/* Table — horizontally scrollable with always-visible top + bottom scrollbars */}
+      {/* Table — horizontally scrollable with custom drag scrollbar */}
       {!isLoading && !isError && filteredOrders.length > 0 && (
         <>
-          {/* Top scrollbar mirror — always visible, synced to table below */}
-          <div
-            ref={topScrollRef}
-            className="der-top-scroll"
-            style={{ overflowX: "scroll", overflowY: "hidden", marginLeft: -28, marginRight: -28, paddingLeft: 28, paddingRight: 28, marginBottom: 2 }}
-          >
-            <div style={{ height: 1, minWidth: 1600 }} />
-          </div>
+          {/* Custom always-visible drag scrollbar */}
+          <DragScrollbar scrollRef={tableScrollRef} />
           {/* Actual table */}
           <div
             ref={tableScrollRef}
-            className="der-table-scroll"
-            style={{ overflowX: "scroll", overflowY: "auto", marginLeft: -28, marginRight: -28, paddingLeft: 28, paddingRight: 28, paddingBottom: 4 }}
+            style={{ overflowX: "auto", overflowY: "visible", marginLeft: -28, marginRight: -28, paddingLeft: 28, paddingRight: 28, paddingBottom: 4 }}
           >
           <table style={{ width: "max-content", minWidth: 1600, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
