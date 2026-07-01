@@ -329,10 +329,16 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
 
   function orderDueAmount(o: any): number {
     const status = String(o.paymentStatus || "").toLowerCase();
+    const total = Number(o.total) || 0;
     if (status === "paid") return 0;
-    if (o.dueAmount != null && Number(o.dueAmount) >= 0) return Number(o.dueAmount);
-    if (o.paidAmount != null) return Math.max(0, (Number(o.total) || 0) - Number(o.paidAmount));
-    if (status === "unpaid") return Number(o.total) || 0;
+    // Unpaid: always the full order total — DB dueAmount may be 0 for older records
+    if (status === "unpaid") return total;
+    // Partial: trust dueAmount when explicitly positive, else derive from paidAmount
+    if (status === "partial") {
+      if (o.dueAmount != null && Number(o.dueAmount) > 0) return Number(o.dueAmount);
+      if (o.paidAmount != null) return Math.max(0, total - Number(o.paidAmount));
+      return total;
+    }
     return 0;
   }
 
@@ -385,14 +391,19 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
       const isUnpaid = statusLower === "unpaid";
       const isPartial = statusLower === "partial";
 
-      // Accumulate unpaid dues
-      if (isUnpaid || isPartial) {
-        if (o.dueAmount != null && Number(o.dueAmount) >= 0) {
+      // Accumulate unpaid dues.
+      // For Unpaid orders always use the full order total — never trust dueAmount from the DB
+      // because older records may have dueAmount=0 while still being marked Unpaid.
+      // For Partial orders, dueAmount/paidAmount from the DB is reliable.
+      if (isUnpaid) {
+        unpaid += total;
+      } else if (isPartial) {
+        if (o.dueAmount != null && Number(o.dueAmount) > 0) {
           unpaid += Number(o.dueAmount);
         } else if (o.paidAmount != null) {
           unpaid += Math.max(0, total - Number(o.paidAmount));
-        } else if (isUnpaid) {
-          unpaid += total;
+        } else {
+          unpaid += total; // fallback: whole amount still owed
         }
       }
 
