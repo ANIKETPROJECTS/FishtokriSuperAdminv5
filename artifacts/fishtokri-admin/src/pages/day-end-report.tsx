@@ -444,17 +444,18 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
   }, [orders]);
 
   const handleDownload = useCallback(() => {
-    if (!orders.length) return;
-    const rows: any[] = [["Invoice No","Order Placed","Delivery Date","Customer","Phone","Items & Qty","Total (₹)","Delivery Partner","Payment Mode","Payment Status","Order Status"]];
-    for (const o of orders) {
+    if (!filteredOrders.length) return;
+    const rows: any[] = [["Invoice No","Order Placed","Delivery Date","Customer","Phone","Items & Qty","Total (₹)","Due Amount (₹)","Delivery Partner","Payment Mode","Payment Status","Order Status"]];
+    for (const o of filteredOrders) {
       const itemsQty = (o.items || []).map((it: any) => `${it.name} × ${it.quantity}`).join(", ");
       const placedDate = o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
       const delivDate = o.deliveryDate ? formatDate(o.deliveryDate) : "—";
-      rows.push([o.invoiceNo, placedDate, delivDate, o.customerName, o.phone, itemsQty, o.total, o.deliveryPerson || "—", o.paymentMode, o.paymentStatus, String(o.status || "").replace(/_/g, " ")]);
+      const due = orderDueAmount(o);
+      rows.push([o.invoiceNo, placedDate, delivDate, o.customerName, o.phone, itemsQty, o.total, due > 0 ? due : "—", o.deliveryPerson || "—", o.paymentMode, o.paymentStatus, String(o.status || "").replace(/_/g, " ")]);
     }
     rows.push([]);
-    rows.push(["SUMMARY", "", "", "", "", "", "", "", "", "", ""]);
-    rows.push(["Total Orders", orders.length]);
+    rows.push(["SUMMARY", "", "", "", "", "", "", "", "", "", "", ""]);
+    rows.push(["Showing (filtered)", filteredOrders.length, "of", orders.length, "total orders"]);
     rows.push(["Cash Revenue", stats.cash]);
     rows.push(["UPI Revenue", stats.upi]);
     rows.push(["Card Revenue", stats.card]);
@@ -462,11 +463,11 @@ function OrdersReport({ from, to, onDownload, downloadRef }: { from: string; to:
     rows.push(["Wallet Collected (Extra)", stats.wallet]);
     rows.push(["Unpaid Dues", stats.unpaid]);
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{wch:20},{wch:22},{wch:14},{wch:48},{wch:14},{wch:22},{wch:14},{wch:16},{wch:16}];
+    ws["!cols"] = [{wch:20},{wch:22},{wch:14},{wch:48},{wch:14},{wch:22},{wch:14},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Orders Report");
     XLSX.writeFile(wb, `orders-report-${from}-to-${to}.xlsx`);
-  }, [orders, stats, from, to]);
+  }, [filteredOrders, orders.length, stats, from, to]);
 
   downloadRef.current = handleDownload;
 
